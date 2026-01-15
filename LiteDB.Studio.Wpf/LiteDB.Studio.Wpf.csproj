@@ -22,6 +22,10 @@
     </Resource>
   </ItemGroup>
 
+  <PropertyGroup>
+    <ApplicationIcon>Resources\litedb_icon.ico</ApplicationIcon>
+  </PropertyGroup>
+
   <ItemGroup>
     <ProjectReference Include="..\LiteDB\LiteDB\LiteDB.csproj" />
   </ItemGroup>

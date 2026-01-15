@@ -11,6 +11,10 @@ This document outlines the migration from the existing WinForms-based **LiteDB.S
 
 ---
 
+## Project Rules
+
+When making any changes to the WPF project, you **must** reference the original WinForms project and use code already produced. **Do not** recreate code if the code already exists.
+
 ## Current State Analysis
 
 ### WinForms Application (LiteDB.Studio)

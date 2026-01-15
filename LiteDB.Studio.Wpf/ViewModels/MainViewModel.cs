@@ -5,6 +5,7 @@ using Microsoft.Win32;
 using System;
 using System.Collections.ObjectModel;
 using System.Data;
+using System.IO;
 using System.Linq;
 using System.Threading.Tasks;
 
@@ -22,6 +23,7 @@ namespace LiteDB.Studio.Wpf.ViewModels
 
         public ObservableCollection<TabViewModel> Tabs { get; } = new ObservableCollection<TabViewModel>();
         public ObservableCollection<string> RecentDatabases { get; } = new ObservableCollection<string>();
+        public ObservableCollection<DbTreeNode> DatabaseTree { get; } = new ObservableCollection<DbTreeNode>();
         public DataTable CurrentResults { get; } = new DataTable();
 
         public MainViewModel(IDatabaseService dbService)
@@ -112,31 +114,74 @@ namespace LiteDB.Studio.Wpf.ViewModels
                 CursorText = "Disconnected";
                 return;
             }
-            var dlg = new OpenFileDialog()
+            // show connection manager dialog
+            var vm = new ConnectionManagerViewModel();
+            var win = new LiteDB.Studio.Wpf.Views.ConnectionManagerWindow
             {
-                Filter = "LiteDB files (*.db)|*.db|All files (*.*)|*.*",
-                Title = "Open LiteDB file"
+                Owner = System.Windows.Application.Current?.MainWindow,
+                DataContext = vm
             };
 
-            var result = dlg.ShowDialog();
-            if (result != true) return;
+            var shown = win.ShowDialog();
+            if (shown != true) return;
 
-            var filename = dlg.FileName;
+            var filename = vm.Filename;
+            if (string.IsNullOrEmpty(filename)) return;
 
             var cs = new LiteDB.ConnectionString(filename);
 
+            // map ConnectionManagerViewModel -> ConnectionString (same logic as WinForms ConnectionForm)
             try
             {
+                cs.Connection = vm.Mode == ConnectionMode.Direct ? LiteDB.ConnectionType.Direct : LiteDB.ConnectionType.Shared;
+
+                cs.Filename = vm.Filename;
+                cs.ReadOnly = vm.ReadOnly;
+                cs.Upgrade = vm.UpgradeFromV4;
+
+                cs.Password = !string.IsNullOrWhiteSpace(vm.Password) ? vm.Password.Trim() : null;
+
+                const long MB = 1024 * 1024;
+                if (vm.InitialSize > 0)
+                {
+                    cs.InitialSize = vm.InitialSize * MB;
+                }
+
+                if (!string.IsNullOrWhiteSpace(vm.CollationLeft))
+                {
+                    var collation = vm.CollationLeft;
+                    if (!string.IsNullOrWhiteSpace(vm.CollationRight))
+                    {
+                        collation += "/" + vm.CollationRight;
+                    }
+
+                    cs.Collation = new LiteDB.Collation(collation);
+                }
+
                 CursorText = "Opening " + filename;
                 ElapsedText = "Reading...";
 
                 await _dbService.ConnectAsync(cs);
 
-                // persist last connection and recent list
+                // persist last connection and recent list using same AppSettingsManager calls
                 LiteDB.Studio.Wpf.Util.AppSettingsManager.ApplicationSettings.LastConnectionStrings = cs;
                 LiteDB.Studio.Wpf.Util.AppSettingsManager.AddToRecentList(cs);
 
                 IsConnected = true;
+
+                // populate tree view to match WinForms behavior
+                try
+                {
+                    DatabaseTree.Clear();
+                    if (_dbService.Database is LiteDB.LiteDatabase db)
+                    {
+                        BuildDatabaseTree(db, filename);
+                    }
+                }
+                catch
+                {
+                    // non-fatal, ignore tree population errors
+                }
 
                 if (!RecentDatabases.Contains(filename))
                 {
@@ -192,6 +237,166 @@ namespace LiteDB.Studio.Wpf.ViewModels
                 Tabs.Add(newTab);
                 SelectedTab = newTab;
             }
+        }
+
+        public void AddSqlSnippet(string sql)
+        {
+            if (string.IsNullOrWhiteSpace(sql)) return;
+
+            // if there's no selected tab or selected tab is the plus tab, or current content is empty -> set into current
+            if (SelectedTab == null || SelectedTab.IsPlus || string.IsNullOrWhiteSpace(SelectedTab.Content))
+            {
+                // ensure there's a non-plus tab to place content
+                if (SelectedTab == null || SelectedTab.IsPlus)
+                {
+                    AddNewTab();
+                }
+
+                SelectedTab.Content = sql.Replace("\\n", "\n");
+            }
+            else
+            {
+                // insert new tab before plus
+                var plus = Tabs.FirstOrDefault(t => t.IsPlus);
+                var newTab = new TabViewModel { Title = $"Query {Tabs.Count}", Content = sql.Replace("\\n", "\n"), IsPlus = false };
+                if (plus != null)
+                {
+                    var idx = Tabs.IndexOf(plus);
+                    Tabs.Insert(idx, newTab);
+                    SelectedTab = newTab;
+                }
+                else
+                {
+                    Tabs.Add(newTab);
+                    SelectedTab = newTab;
+                }
+            }
+        }
+
+        public void RefreshDatabaseTree()
+        {
+            try
+            {
+                DatabaseTree.Clear();
+                if (_dbService.Database is LiteDB.LiteDatabase db)
+                {
+                    // try to recover filename from last connection settings
+                    var filename = LiteDB.Studio.Wpf.Util.AppSettingsManager.ApplicationSettings.LastConnectionStrings?.Filename ?? "";
+                    BuildDatabaseTree(db, filename);
+                }
+            }
+            catch
+            {
+                // ignore
+            }
+        }
+
+        private void BuildDatabaseTree(LiteDB.LiteDatabase db, string filename)
+        {
+            var root = new DbTreeNode { Header = Path.GetFileName(filename), Icon = "pack://application:,,,/LiteDB.Studio.Wpf;component/Resources/database.png" };
+            var system = new DbTreeNode { Header = "System", Icon = "pack://application:,,,/LiteDB.Studio.Wpf;component/Resources/folder_page.png" };
+            root.Children.Add(system);
+
+            var sc = db.GetCollection("$cols")
+                .Query()
+                .Where("type = 'system'")
+                .OrderBy("name")
+                .ToDocuments();
+
+            foreach (var doc in sc)
+            {
+                var name = doc["name"].AsString;
+                system.Children.Add(new DbTreeNode { Header = name, Tag = $"SELECT $ FROM {name}", Icon = "pack://application:,,,/LiteDB.Studio.Wpf;component/Resources/page_white_gear.png" });
+            }
+
+            foreach (var key in db.GetCollectionNames().OrderBy(x => x))
+            {
+                root.Children.Add(new DbTreeNode { Header = key, Tag = $"SELECT $ FROM {key};", Icon = "pack://application:,,,/LiteDB.Studio.Wpf;component/Resources/table.png" });
+            }
+
+            DatabaseTree.Add(root);
+        }
+
+        public long? GetCollectionCount(string name)
+        {
+            try
+            {
+                if (_dbService.Database is LiteDB.LiteDatabase db)
+                {
+                    var col = db.GetCollection(name);
+                    return col?.Count();
+                }
+            }
+            catch { }
+            return null;
+        }
+
+        public string[] GetCollectionIndexes(string name)
+        {
+            try
+            {
+                if (_dbService.Database is LiteDB.LiteDatabase db)
+                {
+                    // try system collection $indexes
+                    try
+                    {
+                        var coll = db.GetCollection("$indexes");
+                        var docs = coll.Query().Where($"collection = '{name}'").ToDocuments();
+                        return docs.Select(d => d.ToString()).ToArray();
+                    }
+                    catch
+                    {
+                        return Array.Empty<string>();
+                    }
+                }
+            }
+            catch { }
+            return Array.Empty<string>();
+        }
+
+        public void DropCollection(string name)
+        {
+            try
+            {
+                if (_dbService.Database is LiteDB.LiteDatabase db)
+                {
+                    db.DropCollection(name);
+                    RefreshDatabaseTree();
+                }
+            }
+            catch { }
+        }
+
+        public bool RenameCollection(string oldName, string newName)
+        {
+            try
+            {
+                if (_dbService.Database is LiteDB.LiteDatabase db)
+                {
+                    db.RenameCollection(oldName, newName);
+                    RefreshDatabaseTree();
+                    return true;
+                }
+            }
+            catch { }
+            return false;
+        }
+
+        public void ExportCollectionToJson(string name, string path)
+        {
+            try
+            {
+                if (_dbService.Database is LiteDB.LiteDatabase db)
+                {
+                    var col = db.GetCollection(name);
+                    using var sw = new System.IO.StreamWriter(path);
+                    foreach (var doc in col.FindAll())
+                    {
+                        sw.WriteLine(doc.ToString());
+                    }
+                }
+            }
+            catch { }
         }
 
         private void CloseTab(TabViewModel tab)

@@ -1,5 +1,7 @@
 using System.Windows;
 using System.Windows.Controls;
+using System.Windows.Input;
+using System.Windows.Media;
 using LiteDB.Studio.Wpf.ViewModels;
 using LiteDB.Studio.Wpf.Services;
 using Microsoft.Extensions.DependencyInjection;
@@ -93,6 +95,149 @@ namespace LiteDB.Studio.Wpf
                     _editor.Text = tab.Content ?? string.Empty;
                 }
             }
+        }
+
+        private void LoadLastDb_Click(object sender, RoutedEventArgs e)
+        {
+            var vm = this.DataContext as ViewModels.MainViewModel;
+
+            var last = LiteDB.Studio.Wpf.Util.AppSettingsManager.ApplicationSettings.LastConnectionStrings?.Filename;
+
+            if (!string.IsNullOrEmpty(last) && vm != null)
+            {
+                _ = vm.OpenRecentAsync(last);
+            }
+        }
+
+        private void DbTree_MouseDoubleClick(object sender, MouseButtonEventArgs e)
+        {
+            var vm = this.DataContext as MainViewModel;
+            if (vm == null) return;
+
+            if (DbTree.SelectedItem is DbTreeNode node && node.Tag is string cmd)
+            {
+                vm.AddSqlSnippet(cmd);
+                if (vm.RunCommand.CanExecute(null)) vm.RunCommand.Execute(null);
+            }
+        }
+
+        private void DbTree_PreviewMouseRightButtonUp(object sender, MouseButtonEventArgs e)
+        {
+            // select the item under mouse
+            var element = e.OriginalSource as DependencyObject;
+            var tvi = VisualUpwardSearch<TreeViewItem>(element);
+            if (tvi != null)
+            {
+                tvi.IsSelected = true;
+                e.Handled = true;
+
+                if (tvi.DataContext is DbTreeNode node)
+                {
+                    var ctx = new ContextMenu();
+                    void AddQueryItem(string header, RoutedEventHandler handler)
+                    {
+                        var mi = new MenuItem { Header = header };
+                        mi.Click += handler;
+                        ctx.Items.Add(mi);
+                    }
+
+                    AddQueryItem("Query", (s, ev) =>
+                    {
+                        var vm2 = this.DataContext as MainViewModel;
+                        if (vm2 != null && node.Tag is string c) vm2.AddSqlSnippet(c);
+                    });
+
+                    AddQueryItem("Count", (s, ev) =>
+                    {
+                        var vm2 = this.DataContext as MainViewModel;
+                        if (vm2 != null && node.Header != null)
+                        {
+                            var name = node.Header;
+                            var count = vm2.GetCollectionCount(name);
+                            MessageBox.Show(this, $"{name}: {count}", "Count", MessageBoxButton.OK, MessageBoxImage.Information);
+                        }
+                    });
+
+                    AddQueryItem("Explain plan", (s, ev) =>
+                    {
+                        var vm2 = this.DataContext as MainViewModel;
+                        if (vm2 != null && node.Tag is string c)
+                        {
+                            vm2.AddSqlSnippet("EXPLAIN " + c);
+                        }
+                    });
+
+                    AddQueryItem("Indexes", (s, ev) =>
+                    {
+                        var vm2 = this.DataContext as MainViewModel;
+                        if (vm2 != null && node.Header != null)
+                        {
+                            var idx = string.Join("\n", vm2.GetCollectionIndexes(node.Header));
+                            MessageBox.Show(this, idx.Length == 0 ? "No indexes" : idx, "Indexes", MessageBoxButton.OK, MessageBoxImage.Information);
+                        }
+                    });
+
+                    AddQueryItem("Export to JSON", (s, ev) =>
+                    {
+                        var vm2 = this.DataContext as MainViewModel;
+                        if (vm2 != null && node.Header != null)
+                        {
+                            var dlg = new Microsoft.Win32.SaveFileDialog { FileName = node.Header + ".json", Filter = "JSON files|*.json|All files|*.*" };
+                            if (dlg.ShowDialog() == true)
+                            {
+                                vm2.ExportCollectionToJson(node.Header, dlg.FileName);
+                            }
+                        }
+                    });
+
+                    AddQueryItem("Analyze", (s, ev) =>
+                    {
+                        MessageBox.Show(this, "Analyze is not implemented.", "Analyze", MessageBoxButton.OK, MessageBoxImage.Information);
+                    });
+
+                    AddQueryItem("Rename", (s, ev) =>
+                    {
+                        var vm2 = this.DataContext as MainViewModel;
+                        if (vm2 != null && node.Header != null)
+                        {
+                            var input = Microsoft.VisualBasic.Interaction.InputBox($"Rename collection '{node.Header}' to:", "Rename Collection", node.Header);
+                            if (!string.IsNullOrWhiteSpace(input) && input != node.Header)
+                            {
+                                if (!vm2.RenameCollection(node.Header, input))
+                                {
+                                    MessageBox.Show(this, "Rename failed.", "Error", MessageBoxButton.OK, MessageBoxImage.Error);
+                                }
+                            }
+                        }
+                    });
+
+                    AddQueryItem("Drop collection", (s, ev) =>
+                    {
+                        var vm2 = this.DataContext as MainViewModel;
+                        if (vm2 != null && node.Header != null)
+                        {
+                            var res = MessageBox.Show(this, $"Drop collection '{node.Header}'?", "Confirm", MessageBoxButton.YesNo, MessageBoxImage.Warning);
+                            if (res == MessageBoxResult.Yes)
+                            {
+                                vm2.DropCollection(node.Header);
+                            }
+                        }
+                    });
+
+                    tvi.ContextMenu = ctx;
+                    ctx.IsOpen = true;
+                }
+            }
+        }
+
+        private static T? VisualUpwardSearch<T>(DependencyObject source) where T : DependencyObject
+        {
+            while (source != null && !(source is T))
+            {
+                source = VisualTreeHelper.GetParent(source);
+            }
+
+            return source as T;
         }
     }
 }

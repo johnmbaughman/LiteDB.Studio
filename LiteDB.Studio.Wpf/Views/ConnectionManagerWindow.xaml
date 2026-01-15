@@ -1,0 +1,59 @@
+<Window x:Class="LiteDB.Studio.Wpf.Views.ConnectionManagerWindow"
+        xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
+        xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
+        xmlns:vm="clr-namespace:LiteDB.Studio.Wpf.ViewModels"
+        mc:Ignorable="d"
+        Title="Connection Manager" Height="474" Width="612" WindowStartupLocation="CenterOwner" FontFamily="Segoe UI" FontSize="9" ResizeMode="NoResize">
+    <Window.Resources>
+        <util:EnumToBooleanConverter x:Key="EnumToBooleanConverter" xmlns:util="clr-namespace:LiteDB.Studio.Wpf.Util" />
+    </Window.Resources>
+    <Window.DataContext>
+        <vm:ConnectionManagerViewModel />
+    </Window.DataContext>
+
+    <Canvas>
+        <!-- match WinForms absolute placement and sizes -->
+        <GroupBox Header="Connection Mode" Width="569" Height="60" Canvas.Left="12" Canvas.Top="11">
+            <Canvas>
+                <RadioButton Content="Direct" Canvas.Left="30" Canvas.Top="25" IsChecked="{Binding Mode, Converter={StaticResource EnumToBooleanConverter}, ConverterParameter=Direct}" />
+                <RadioButton Content="Shared" Canvas.Left="151" Canvas.Top="25" IsChecked="{Binding Mode, Converter={StaticResource EnumToBooleanConverter}, ConverterParameter=Shared}" />
+            </Canvas>
+        </GroupBox>
+
+        <GroupBox Header="Filename" Width="569" Height="72" Canvas.Left="12" Canvas.Top="81">
+            <Canvas>
+                <TextBox x:Name="FilenameBox" Text="{Binding Filename}" Canvas.Left="19" Canvas.Top="28" Width="502" Height="27" />
+                <Button x:Name="BtnOpen" Canvas.Left="527" Canvas.Top="28" Width="28" Height="24" Click="Browse_Click">
+                    <Image Source="pack://application:,,,/LiteDB.Studio.Wpf;component/Resources/folder_explore.png" Width="16" Height="16" />
+                </Button>
+            </Canvas>
+        </GroupBox>
+
+        <GroupBox Header="Parameters" Width="569" Height="209" Canvas.Left="12" Canvas.Top="159">
+            <Canvas>
+                <Label Content="Password:" Canvas.Left="18" Canvas.Top="25" />
+                <PasswordBox x:Name="PasswordBox" Canvas.Left="151" Canvas.Top="22" Width="404" Height="27" PasswordChanged="PasswordBox_PasswordChanged" />
+
+                <Label Content="Initial Size (MB):" Canvas.Left="18" Canvas.Top="64" />
+                <TextBox x:Name="txtInitialSize" Text="{Binding InitialSize}" Canvas.Left="151" Canvas.Top="61" Width="70" Height="27" TextAlignment="Center" />
+
+                <Label Content="Collation:" Canvas.Left="18" Canvas.Top="103" />
+                <ComboBox x:Name="cmbCulture" Canvas.Left="151" Canvas.Top="100" Width="117" Height="28" IsEditable="False" />
+                <Label Content="/" Canvas.Left="274" Canvas.Top="103" />
+                <ComboBox x:Name="cmbSort" Canvas.Left="292" Canvas.Top="100" Width="117" Height="28" IsEditable="False" />
+
+                <CheckBox x:Name="chkReadonly" Content="Read only" Canvas.Left="21" Canvas.Top="139" />
+                <CheckBox x:Name="chkUpgrade" Content="Upgrade from LiteDB v4 (if needed)" Canvas.Left="21" Canvas.Top="175" />
+            </Canvas>
+        </GroupBox>
+
+        <Button x:Name="btnOK" Canvas.Left="454" Canvas.Top="383" Width="127" Height="38" Padding="10,0,0,0" Click="BtnOK_Click" FontWeight="Bold">
+            <StackPanel Orientation="Horizontal" HorizontalAlignment="Center">
+                <Image Source="pack://application:,,,/LiteDB.Studio.Wpf;component/Resources/database_connect.png" Width="16" Height="16" Margin="0,0,8,0" />
+                <TextBlock Text="Connect" VerticalAlignment="Center" />
+            </StackPanel>
+        </Button>
+    </Canvas>
+</Window>
