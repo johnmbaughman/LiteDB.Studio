@@ -21,6 +21,23 @@ Migrate and complete the WPF port of LiteDB.Studio from WinForms to WPF (MVVM), 
 
 - All git commits and pushes that record repository history MUST be performed by a human. Agents are permitted to prepare patches (for example via `apply_patch`) and propose changes, but MUST NOT execute commits or pushes. Human reviewers MUST apply, review, sign, and push commits; CI may verify author/committer metadata as part of gating.
 
+### Editor Porting: ICSharpCode.TextEditor → AvalonEdit
+
+- Rationale: replace legacy `ICSharpCode.TextEditor` usages with `AvalonEdit` (ICSharpCode.AvalonEdit) for first-class WPF integration, improved performance, and active maintenance.
+- Requirements:
+  - Port all WPF editor usages from `ICSharpCode.TextEditor` to `AvalonEdit`'s `TextEditor` control. Do not introduce a hybrid mix of both editors in the WPF project.
+  - Implement completion using AvalonEdit's `CompletionWindow`/`ICompletionData` patterns; the completion provider must consult `IDatabaseService` for schema and function suggestions.
+  - Expose editor state (text, caret position, selection, IsModified) to `TabViewModel` via attached properties/behaviors; attached properties/behaviors are the preferred MVVM pattern — avoid view code-behind except for minimal view-only wiring.
+  - Ensure run-selection and caret-aware run behaviors map to existing commands (F5, Ctrl+Enter, Run selection) and are unit-tested against `TabViewModel` behaviors.
+  - Preserve editor features: syntax highlighting, undo/redo, find/replace hooks (if present), and configurability for tab size/font via `App` settings.
+  - Add the required NuGet dependency reference for AvalonEdit (ICSharpCode.AvalonEdit) and document any additional packages required for completion or text templating.
+
+- Acceptance criteria for the port:
+  - All editor-related acceptance tests (completion, run selection, caret-aware run, IsModified tracking) pass using the new AvalonEdit integration.
+  - No remaining references to `ICSharpCode.TextEditor` exist within `LiteDB.Studio.Wpf` sources; include a search/replace verification step in the PR checklist.
+  - Performance of editor operations (typing, large buffer navigation, selection-run) meets the non-functional constraints in this spec.
+
+
 ## Scope
 
 In scope:
@@ -142,6 +159,11 @@ Phase 7 — Testing & Polish
 - The main user flows (connect → run → edit → save) have automated tests that pass in CI.
 - Result limiting prevents UI freezes; users are explicitly shown when limits are reached.
 
+### Performance SLOs (editor & completion)
+- Editor typing responsiveness: UI should render keystrokes within 50ms for typical local edits (no heavy background processing).
+- Completion provider latency: show completion results within 200ms for local schema lookups (IDatabaseService caching enabled); up to 500ms acceptable when on-demand schema fetch is required.
+- Completion invocation behavior: `Ctrl+Space` must return results within the latency targets; automatic trigger debounce should be ≤150ms to avoid interruptive suggestions.
+
 ## Testing & CI Requirements
 
 - All non-trivial changes must include unit tests. Tests must mock `IDatabaseService` for ViewModel tests.
@@ -157,7 +179,6 @@ Phase 7 — Testing & Polish
 ### Destructive Actions UX
 
 - Always show a confirmation dialog for destructive operations (DROP collection, DELETE many, or other irreversible actions). The dialog must describe the operation and its scope (affected collection, query, or number of documents).
-- Default behavior: always show a confirmation dialog for destructive operations (DROP collection, DELETE many, or other irreversible actions). The dialog must describe the operation and its scope (affected collection, query, or number of documents).
 - Modifier behavior (Windows-like): if the user holds a modifier key (e.g., `Shift`) while invoking the destructive action, the operation MAY bypass or alter confirmation behavior to mirror Windows file-delete semantics (for example, `Shift+Delete` performs an immediate permanent delete). Implementations SHOULD surface clear affordances when modifier behavior is in effect (iconography or inline text) and may still show a compact confirmation if configured in settings.
 - For bulk or high-risk actions, require the user to type a confirmation phrase (e.g., the collection name) before enabling the final confirm button.
 
@@ -208,3 +229,8 @@ Phase 7 — Testing & Polish
 - Q: Which `ExecuteAsync` return shape should the service use? → A: Option B — Rich `QueryResult` (fields: `Rows`, `Columns`, `LimitExceeded`, `RowCount`, `ExecutionTime`, `Warnings`, `Metadata`).
  - Q: How should destructive DB actions be confirmed? → A: Options A+B — show confirmation dialog AND require a modifier (e.g., Shift or "I understand" checkbox); bulk/high-risk actions require typed confirmation.
  - Q: Which scope should the default row limit use? → A: Global default (1000) with per-tab/session override.
+
+### Session 2026-01-20
+
+- Q: Which binding approach should be used to expose AvalonEdit editor state to `ViewModel`s? → A: Option A — Attached properties / behaviors (MVVM-friendly). 
+  - Rationale: Keeps UI logic out of `ViewModel`s, is testable, and minimizes code-behind; implement attached properties or behaviors to surface `EditorText`, `CaretOffset`, `SelectionStart`, `SelectionLength`, and `IsModified` to `TabViewModel`.

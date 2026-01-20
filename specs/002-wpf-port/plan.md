@@ -158,6 +158,48 @@ No constitutional violations. Complexity tracking not required.
 
 ---
 
+## Editor Porting Tasks (ICSharpCode.TextEditor → AvalonEdit)
+
+This section captures concrete implementation steps introduced by the updated spec which mandates porting existing editor usages from `ICSharpCode.TextEditor` to `AvalonEdit`.
+
+1. Add dependency
+    - Add NuGet package reference: `ICSharpCode.AvalonEdit` to `LiteDB.Studio.Wpf.csproj`.
+    - Document any optional packages required for advanced completion or templates in `quickstart.md`.
+
+2. Editor MVVM binding (preferred: attached properties/behaviors)
+    - Implement attached properties / behaviors that expose AvalonEdit editor state to `TabViewModel`: `EditorText`, `CaretOffset`/`LineColumn`, `SelectionStart`, `SelectionLength`, `IsModified`.
+    - Attached properties/behaviors are the preferred MVVM-friendly pattern; avoid view code-behind except for minimal view-only wiring.
+
+3. Completion provider
+    - Implement completion using AvalonEdit's `CompletionWindow` and `ICompletionData` patterns.
+    - Create `EditorCompletionService` that queries `IDatabaseService` for schema, collection names, and function suggestions.
+    - Wire completion to `Ctrl+Space` and automatic triggers where appropriate; unit-test completion provider logic against mocked `IDatabaseService`.
+
+4. Run-selection & caret-aware behavior
+    - Ensure `TabViewModel.RunCommand` executes selection when a selection exists, otherwise executes full buffer.
+    - Map keyboard shortcuts (F5, Ctrl+Enter) in the View to invoke the `RunCommand` on the `TabViewModel`.
+    - Add unit tests to assert selection/run behavior and caret-aware execution.
+
+5. Preserve editor features
+    - Implement or retain syntax highlighting, undo/redo, find/replace hooks, and configurable tab size/font via application settings.
+    - Ensure large-buffer performance (typing, navigation) remains within performance goals.
+
+6. Tests & CI checks
+    - Add unit tests in `LiteDB.Studio.Wpf.Tests/ViewModels/TabViewModelTests.cs` for `IsModified`, selection-run behaviors, and adapter bindings (mock `IDatabaseService`).
+    - Add integration test(s) to exercise the editor-driven execution flow using `LiteDbService` with ephemeral DBs.
+
+7. PR checklist / verification
+    - Include an automatic verification step in the PR checklist (or CI job) that runs a repository search for `ICSharpCode.TextEditor` references and fails the check if any remain within `LiteDB.Studio.Wpf` sources.
+    - Document the verification step in `specs/002-wpf-port/checklists/requirements.md`.
+
+8. Migration cadence
+    - Implement port incrementally per-story: start with Phase 1 (core execution) by adding lightweight attached properties that bind AvalonEdit `TextEditor` to `TabViewModel` (expose text/caret/selection/IsModified). Then progressively add completion, advanced editor features, and configuration in Phase 4 (Editor Enhancements).
+
+Developer Notes:
+- Prefer minimal changes and keep the existing `LiteDB.Studio` WinForms project untouched; the WPF project should choose AvalonEdit exclusively for editor components.
+- Prefer attached properties/behaviors for binding AvalonEdit to `ViewModel`s; if an adapter is required for a specific scenario, keep it thin and well-tested.
+
+
 ## Next Steps
 
 1. **Run `/speckit.tasks`** to generate prioritized task breakdown from this plan (creates `tasks.md`)

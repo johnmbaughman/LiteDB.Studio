@@ -42,6 +42,11 @@
 - Human-commit rule: agents may prepare patches (via `apply_patch`) but all commits/pushes must be performed by a human; CI may verify committer metadata.
 - Language-specific method signatures moved to `specs/002-wpf-port/plan.md` (implementation plan)
 
+## Verification additions (editor porting)
+
+- Before merging editor-related changes, PRs must include a verification step ensuring all `ICSharpCode.TextEditor` references have been removed from `LiteDB.Studio.Wpf` sources. This can be a CI check or a documented local verification step using `Select-String`/`git grep`.
+
+
 ## Current Status
 
 - Spec file: `specs/002-wpf-port/spec.md` — Complete and updated.

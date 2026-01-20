@@ -101,7 +101,7 @@ This document breaks down the WPF port into prioritized, executable tasks organi
 - [ ] T046 [US1] Use BsonValueToStringConverter in ResultGrid column templates in LiteDB.Studio.Wpf/Controls/ResultGrid.xaml
 - [ ] T047 [US1] Add LimitExceeded indicator to ResultGrid UI in LiteDB.Studio.Wpf/Controls/ResultGrid.xaml (show warning banner when QueryResult.LimitExceeded = true)
 - [ ] T048 [US1] Update MainWindow.xaml in LiteDB.Studio.Wpf/Views/MainWindow.xaml with TabControl bound to MainViewModel.Tabs
-- [ ] T049 [US1] Add AvalonEdit TextEditor to tab content template in MainWindow.xaml bound to TabViewModel.EditorText
+- [ ] T049 [US1] Add AvalonEdit `TextEditor` to tab content template in MainWindow.xaml bound to `TabViewModel.EditorText` via attached properties/behaviors (preferred MVVM pattern)
 - [ ] T050 [US1] Add ResultGrid to tab content template in MainWindow.xaml bound to TabViewModel.LastResult
 - [ ] T051 [US1] Wire MainViewModel to MainWindow.xaml.cs in LiteDB.Studio.Wpf/Views/MainWindow.xaml.cs (set DataContext, inject IDatabaseService)
 - [ ] T052 [US1] Add unit test TabViewModelTests.RunCommand_SetsLastResult_WhenQuerySucceeds in LiteDB.Studio.Wpf.Tests/ViewModels/TabViewModelTests.cs (mock IDatabaseService, verify LastResult populated)
@@ -319,10 +319,29 @@ This document breaks down the WPF port into prioritized, executable tasks organi
 | Phase 7: User Story 5 | 10 | 3 | File Operations & UX |
 | Phase 8: User Story 6 | 13 | 3 | Transactions & Debugger |
 | Phase 9: User Story 7 | 11 | 7 | Testing & Polish |
-| Phase 10: Polish | 10 | 8 | N/A |
-| **Total** | **134** | **46** | **7 stories** |
+| Phase 10: Polish | 15 | 11 | N/A |
+| **Total** | **139** | **51** | **7 stories** |
 
 ---
+
+## Editor Porting Adjustments (from spec update)
+
+These tasks were added to reflect the spec and plan updates that mandate porting `ICSharpCode.TextEditor` usages to AvalonEdit and preferring attached properties/behaviors for MVVM bindings.
+
+- [ ] T135 Implement AvalonEdit attached properties/behaviors in LiteDB.Studio.Wpf/Controls/AvalonEditBehaviors.cs exposing: `EditorText`, `CaretOffset`/`LineColumn`, `SelectionStart`, `SelectionLength`, `IsModified` and routed events to update bound `TabViewModel` properties.
+- [ ] T136 Add unit tests for AvalonEdit attached properties in LiteDB.Studio.Wpf.Tests/ViewModels/AvalonEditBehaviorsTests.cs (create `TextEditor` instance, apply attached properties, verify `TabViewModel`-observable updates via a test helper).
+- [ ] T137 Update MainWindow.xaml tab template and any EditorTab.xaml to use attached properties/behaviors rather than direct code-behind wiring (confirm binding paths and command hooks).
+- [ ] T138 Update `specs/002-wpf-port/checklists/requirements.md` to include PR verification step: repository search for `ICSharpCode.TextEditor` within `LiteDB.Studio.Wpf` must return zero results before merge.
+- [ ] T139 Add PR checklist item and a CI verification script (or pipeline step) that fails the PR if `ICSharpCode.TextEditor` references remain in `LiteDB.Studio.Wpf` sources (implement search using PowerShell `Select-String` or `git grep`).
+ 
+## Cross-cutting Tasks: Localization, DI, Performance
+
+- [ ] T140 [P] Localization: Extract UI strings to `LiteDB.Studio.Wpf/Resources/Strings.resx` and update Views/XAML to use resource bindings; include culture-neutral keys and comment usage.
+- [ ] T141 [P] Localization Tests: Add unit/integration tests in `LiteDB.Studio.Wpf.Tests/Localization/` to verify resource lookup and a sample culture switch (e.g., `fr-FR`) shows translated strings for a sample view.
+- [ ] T142 [P] DI/bootstrap: Add `AppBootstrapper.cs` (or `ServiceRegistration.cs`) in `LiteDB.Studio.Wpf/` that registers services with `IServiceCollection` (register `IDatabaseService`, `EditorCompletionService`, ViewModels) and document the chosen DI approach in `quickstart.md`.
+- [ ] T143 [P] DI bootstrap test: Add `BootstrapperTests.cs` in `LiteDB.Studio.Wpf.Tests/` to assert that `ServiceProvider` resolves `IDatabaseService` and `MainViewModel` without exceptions (use a test service collection builder).
+- [ ] T144 [P] Performance SLOs: Add performance-check tests for completion provider latency (e.g., `LiteDB.Studio.Wpf.Tests/Performance/CompletionLatencyTests.cs`) asserting median latency <200ms for local schema mocks and document the SLOs in `specs/002-wpf-port/spec.md`.
+
 
 ## Dependencies & Execution Order
 
