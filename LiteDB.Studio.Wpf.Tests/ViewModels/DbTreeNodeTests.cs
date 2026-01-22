@@ -1,0 +1,44 @@
+using LiteDB.Studio.Wpf.Services;
+using LiteDB.Studio.Wpf.ViewModels;
+using NSubstitute;
+using System.Collections.Generic;
+using Xunit;
+using System.Threading.Tasks;
+
+namespace LiteDB.Studio.Wpf.Tests.ViewModels
+{
+    public class DbTreeNodeTests
+    {
+        [Fact]
+        public async Task LoadChildrenCommand_LoadsSchema()
+        {
+            // Arrange
+            var mockService = Substitute.For<IDatabaseService>();
+            var schema = new List<ColumnInfo>
+            {
+                new() { Name = "field1" },
+                new() { Name = "field2" }
+            };
+            mockService.GetCollectionSchemaAsync("testCollection", default).ReturnsForAnyArgs(schema);
+
+            var node = new DbTreeNode(mockService)
+            {
+                Header = "testCollection",
+                Tag = "collection"
+            };
+
+            // Act
+            await node.LoadChildrenCommand.ExecuteAsync(null);
+
+            // Assert
+            Assert.True(node.IsLoaded);
+            Assert.Equal(2, node.Children.Count);
+            Assert.Equal("field1", node.Children[0].Header);
+            Assert.Equal("field", node.Children[0].Tag);
+            Assert.Equal("pack://application:,,,/Resources/Icons/field.png", node.Children[0].IconUri);
+            Assert.Equal("field2", node.Children[1].Header);
+            Assert.Equal("field", node.Children[1].Tag);
+            Assert.Equal("pack://application:,,,/Resources/Icons/field.png", node.Children[1].IconUri);
+        }
+    }
+}

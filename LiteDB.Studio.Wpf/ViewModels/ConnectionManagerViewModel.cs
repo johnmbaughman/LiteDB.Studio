@@ -1,5 +1,6 @@
 using CommunityToolkit.Mvvm.ComponentModel;
 using CommunityToolkit.Mvvm.Input;
+using Microsoft.Win32;
 using System;
 using System.Windows.Input;
 
@@ -22,7 +23,9 @@ namespace LiteDB.Studio.Wpf.ViewModels
         private bool _readOnly = false;
         private bool _upgradeFromV4 = false;
 
-        public event EventHandler<bool?>? RequestClose;
+        private bool? _closeTrigger;
+
+        public bool? CloseTrigger { get => _closeTrigger; set => SetProperty(ref _closeTrigger, value); }
 
         public ConnectionMode Mode { get => _mode; set => SetProperty(ref _mode, value); }
         public string Filename { get => _filename; set => SetProperty(ref _filename, value); }
@@ -35,21 +38,38 @@ namespace LiteDB.Studio.Wpf.ViewModels
 
         public ICommand ConnectCommand { get; }
         public ICommand CancelCommand { get; }
+        public ICommand BrowseCommand { get; }
 
         public ConnectionManagerViewModel()
         {
             ConnectCommand = new RelayCommand(OnConnect);
             CancelCommand = new RelayCommand(OnCancel);
+            BrowseCommand = new RelayCommand(OnBrowse);
         }
 
         private void OnConnect()
         {
-            RequestClose?.Invoke(this, true);
+            CloseTrigger = true;
         }
 
         private void OnCancel()
         {
-            RequestClose?.Invoke(this, false);
+            CloseTrigger = false;
+        }
+
+        private void OnBrowse()
+        {
+            var dlg = new OpenFileDialog()
+            {
+                Filter = "LiteDB files (*.db)|*.db|All files (*.*)|*.*",
+                Title = "Open LiteDB file"
+            };
+
+            var res = dlg.ShowDialog();
+            if (res == true)
+            {
+                Filename = dlg.FileName;
+            }
         }
     }
 }

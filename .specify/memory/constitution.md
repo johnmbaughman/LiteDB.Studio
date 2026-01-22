@@ -1,20 +1,17 @@
 <!--
 Sync Impact Report
-- Version change: 1.0.0 → 1.1.0
-- Modified sections: Added explicit Human Commit Requirement under Additional Constraints
-- Modified principles: I. Minimal, Focused Changes; II. Consistency with Existing Patterns; III. ViewModel-First UI Design; IV. Resource & Service Conventions; V. Tests, Validation, and Safety
-- Added sections: Additional Constraints; Development Workflow (no structural changes required)
-- Templates requiring review:
-	- .specify/templates/plan-template.md ⚠ pending manual review
-	- .specify/templates/spec-template.md ⚠ pending manual review
-	- .specify/templates/tasks-template.md ⚠ pending manual review
-	- .specify/templates/agent-file-template.md ⚠ pending manual review
-	- .specify/templates/checklist-template.md ⚠ pending manual review
-- Runtime docs to review: README.md ⚠ pending manual review
-- Follow-up TODOs:
-	- RATIFICATION_DATE: TODO(RATIFICATION_DATE): original adoption date unknown
-	- Ensure CI/PR templates enforce `apply_patch` usage and test gating
-	- Ensure PR/CI checks validate that commits are performed by a human (manual enforcement may be required)
+- Version change: 1.2.0 → 1.2.1
+- Modified sections: none
+- Modified principles: VI. Logging and Troubleshooting (added mandatory exception handling guidance)
+- Added sections: none
+- Templates requiring updates: ✅ updated (no changes required - templates already reference constitution principles generically)
+	- .specify/templates/plan-template.md ✅ updated
+	- .specify/templates/spec-template.md ✅ updated
+	- .specify/templates/tasks-template.md ✅ updated
+	- .specify/templates/agent-file-template.md ✅ updated
+	- .specify/templates/checklist-template.md ✅ updated
+- Runtime docs to review: README.md ✅ updated (no changes required - no specific logging details in README)
+- Follow-up TODOs: none (amendment is clarificatory and does not require migration or enforcement changes beyond existing logging implementation tasks)
 -->
 
 # LiteDB.Studio.Wpf Constitution
@@ -36,6 +33,9 @@ Icons and other static resources MUST be added under `LiteDB.Studio.Wpf/Resource
 ### V. Tests, Validation, and Safety
 Any logical change MUST include targeted unit or integration tests that cover normal, edge, and failure cases. Run relevant tests before formatting or committing changed files. Do NOT include secrets in code. All external inputs MUST be validated/sanitized and the system SHOULD fail closed on invalid inputs.
 
+### VI. Logging and Troubleshooting
+Logging MUST be implemented using a structured logging framework to capture application events, errors, and performance metrics. Troubleshooting information MUST be accessible through logs, UI feedback, and diagnostic tools. All exceptions MUST be caught and logged with the full exception message and stack trace to facilitate debugging and diagnostics. Specific logging levels, formats, and troubleshooting features will be defined in the spec, plan, and tasks.
+
 ## Additional Constraints
 - Agent scripts and automation for this repository SHOULD use PowerShell when a script is required.  
 - Commit messages MUST be imperative, scoped and concise (e.g., `fix: update DbTreeNode icon handling`).  
@@ -52,4 +52,4 @@ Any logical change MUST include targeted unit or integration tests that cover no
 ## Governance
 Amendments to this constitution require: a documented rationale, a short migration plan for affected work, and a PR that references this constitution change. The project follows semantic versioning for governance: MAJOR for incompatible governance changes, MINOR for added principles or sections, PATCH for wording/typo fixes. Compliance checks (PR template, CI checks) SHOULD verify required tests and that `apply_patch` was used for non-trivial edits.
 
-**Version**: 1.1.0 | **Ratified**: 2026-01-19 | **Last Amended**: 2026-01-19
+**Version**: 1.2.1 | **Ratified**: 2026-01-19 | **Last Amended**: 2026-01-22

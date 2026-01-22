@@ -1,7 +1,7 @@
 ---
 title: WPF Port — LiteDB.Studio Migration
-created: 2026-01-19
-spec_version: 1.0
+created: 2026-01-22
+spec_version: 1.1
 short_name: wpf-port
 number: 2
 ---
@@ -18,8 +18,24 @@ Migrate and complete the WPF port of LiteDB.Studio from WinForms to WPF (MVVM), 
 - All DB access must use `IDatabaseService` / `LiteDbService` lifecycle APIs.
 - Use CommunityToolkit.Mvvm patterns (`ObservableObject`, `IAsyncRelayCommand`, etc.).
 - Add unit and integration tests for changed logic; tests must run green in CI.
+- Implement mandatory file logging using Serilog; log files stored in `%APPDATA%\Temp\LiteDB.Studio\` folder with rolling file naming and structured logging for troubleshooting.
 
 - All git commits and pushes that record repository history MUST be performed by a human. Agents are permitted to prepare patches (for example via `apply_patch`) and propose changes, but MUST NOT execute commits or pushes. Human reviewers MUST apply, review, sign, and push commits; CI may verify author/committer metadata as part of gating.
+
+### Logging Requirements
+
+As per constitution principle VI (Logging and Troubleshooting), the WPF port MUST implement structured logging using Serilog for mandatory file logging to support application troubleshooting and diagnostics.
+
+- **Framework**: Use Serilog as the logging framework.
+- **File Location**: Log files MUST be stored in the user's AppData temp folder under `LiteDB.Studio` subfolder (e.g., `%APPDATA%\Temp\LiteDB.Studio\`).
+- **File Naming**: Use rolling file naming convention (e.g., `log-20260122.txt`, `log-20260123.txt`) to prevent single large files and manage log retention.
+- **Log Levels**: Capture events at Debug, Information, Warning, Error, and Fatal levels with appropriate filtering for production use.
+- **Log Content**: Each log entry MUST include timestamps, log level, source context, and descriptive messages.
+- **Exception Handling**: All exceptions MUST be caught and logged with the full exception message and stack trace to facilitate debugging and diagnostics.
+- **Key Events**: Log application startup/shutdown, database connections, query executions, errors, and other significant operations.
+- **Accessibility**: Log file location MUST be documented for users to access for troubleshooting purposes.
+- **Performance**: Logging MUST not degrade application performance by more than 5%.
+- **Thread Safety**: Logging operations MUST be thread-safe to handle concurrent access.
 
 ### Editor Porting: ICSharpCode.TextEditor → AvalonEdit
 
@@ -150,7 +166,7 @@ Phase 7 — Testing & Polish
 - Story: Before merge, tests exist and CI gates run green.
 - Acceptance Criteria:
   - Unit tests for `MainViewModel`, `TabViewModel`, and `DatabaseTreeViewModel` using mocked `IDatabaseService`.
-  - Integration tests for `LiteDbService` using temporary DB files; tests cover connect/execute/update/transactions.
+  - Integration tests for `LiteDbService` using in-memory databases; tests cover connect/execute/update/transactions.
   - Performance checks for grid virtualization and a memory/leak review for repeated open/close cycles.
 
 ## Success Criteria (measurable)
@@ -167,7 +183,7 @@ Phase 7 — Testing & Polish
 ## Testing & CI Requirements
 
 - All non-trivial changes must include unit tests. Tests must mock `IDatabaseService` for ViewModel tests.
-- Integration tests for `LiteDbService` must use ephemeral DB files in a temporary folder and clean up after run.
+- Integration tests for `LiteDbService` must use in-memory databases and clean up automatically after run.
 - CI must run `dotnet test` for all test projects and fail the build on failures.
 - PR template must include Problem, Approach, Risks, Tests, Rollout/Rollback notes.
 

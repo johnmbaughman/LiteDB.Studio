@@ -14,13 +14,14 @@ Guide Copilot to produce helpful, safe, concise, and review‑ready output acros
 - Provide **one primary solution**; mention alternatives only when trade‑offs materially differ.
 - All agent tools must use PowerShell; Python is not reliably available.
 - Create PowerShell script tools in the `.\.github\tools` directory.
-  - Use scripts to avoid command line formatting issues in prompts.
+- Use PowerShell scripts to avoid command line formatting issues in prompts.
 
 ## 2) Code & Change Quality
 - Match the **existing style and patterns** visible in the current repo; do not introduce unrelated paradigms.
 - Keep code **simple and readable**; optimize only when necessary and call out trade‑offs.
 - Include **light documentation** (self‑explaining names, brief comments where non‑obvious).
 - Avoid dead code, excessive abstraction, and speculative hooks.
+- When modifying any file, ensure that duplicated text or old changes are **fully cleaned up**.
 
 ## 3) Testing & Safety (tool‑agnostic)
 - When adding or modifying code, propose **targeted tests** (unit/behavioral) that cover success, failure, and edge cases.

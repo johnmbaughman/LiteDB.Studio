@@ -53,6 +53,11 @@ These instructions are intended to help contributors understand, build, run, and
 - Keep UI logic in ViewModels; avoid code-behind changes unless strictly UI-related (dialogs, event wiring).
 - When adding icons, place them under `LiteDB.Studio.Wpf/Resources` and reference with pack URIs: `pack://application:,,,/LiteDB.Studio.Wpf;component/Resources/<name>.png`.
 
+## ObservableProperty Usage Guidelines
+- Use the `[ObservableProperty]` attribute for simple properties that only need to notify on change. This generates the property automatically from a private field, reducing boilerplate.
+- Do not use `[ObservableProperty]` for properties with custom logic in getters or setters, validation, or additional notifications. Instead, use manual property implementations or `ObservableObject.SetProperty()` methods.
+- Classes using `[ObservableProperty]` must be declared as `partial` to allow source generation.
+
 ## Quick pointers (developer notes)
 - Tree node model: `LiteDB.Studio.Wpf.ViewModels.DbTreeNode` (Header, Tag, Icon, Children).
 - Editor tabs: `MainViewModel.Tabs` uses `TabViewModel` objects; `AddSqlSnippet()` adds SQL to the current/new tab.

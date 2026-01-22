@@ -8,32 +8,51 @@ using System.Data;
 using System.IO;
 using System.Linq;
 using System.Threading.Tasks;
+using System.Windows;
 
 namespace LiteDB.Studio.Wpf.ViewModels
 {
-    public class MainViewModel : ObservableObject
+    public partial class MainViewModel : ObservableObject
     {
         private readonly IDatabaseService _dbService;
 
+        [ObservableProperty]
         private string _cursorText = string.Empty;
+
+        [ObservableProperty]
         private string _elapsedText = string.Empty;
+
+        [ObservableProperty]
         private bool _isConnected = false;
+
+        [ObservableProperty]
+        private string _currentDatabase = string.Empty;
+
+        [ObservableProperty]
+        private bool _transactionActive = false;
+
         private bool _loadLastDatabaseOnStartup = false;
         private TabViewModel? _selectedTab;
 
         public ObservableCollection<TabViewModel> Tabs { get; } = new ObservableCollection<TabViewModel>();
         public ObservableCollection<string> RecentDatabases { get; } = new ObservableCollection<string>();
-        public ObservableCollection<DbTreeNode> DatabaseTree { get; } = new ObservableCollection<DbTreeNode>();
+
+        public DatabaseTreeViewModel Tree { get; }
         public DataTable CurrentResults { get; } = new DataTable();
 
         public MainViewModel(IDatabaseService dbService)
         {
             _dbService = dbService ?? throw new ArgumentNullException(nameof(dbService));
+            Tree = new DatabaseTreeViewModel(dbService);
+            Tree.InsertSnippetRequested += (s, snippet) => InsertSnippet(snippet);
+
+            _dbService.ConnectionStateChanged += OnConnectionStateChanged;
+            _dbService.TransactionStateChanged += OnTransactionStateChanged;
 
             ConnectCommand = new AsyncRelayCommand(ConnectAsync);
             DisconnectCommand = new RelayCommand(Disconnect);
             RunCommand = new RelayCommand(Run);
-            AddTabCommand = new RelayCommand(AddNewTab);
+            NewTabCommand = new RelayCommand(AddNewTab);
             CloseTabCommand = new RelayCommand<TabViewModel>(CloseTab);
             OpenRecentCommand = new AsyncRelayCommand<object>(OpenRecentAsync);
                 OpenRecentWrapperCommand = new RelayCommand<object>(p =>
@@ -43,20 +62,43 @@ namespace LiteDB.Studio.Wpf.ViewModels
                 });
             ClearRecentCommand = new RelayCommand(ClearRecentList);
             ValidateRecentCommand = new RelayCommand(ValidateRecentList);
+            RefreshTreeCommand = new AsyncRelayCommand(RefreshTreeAsync);
+            InsertSnippetCommand = new RelayCommand<string>(InsertSnippet);
 
             // create initial + tab
-            Tabs.Add(new TabViewModel { Title = "+", IsPlus = true });
+            Tabs.Add(new TabViewModel(_dbService) { Title = "+", IsPlus = true });
+        }
+
+        public void Initialize()
+        {
+            // load persisted recent list
+            foreach (var cs in LiteDB.Studio.Wpf.Util.AppSettingsManager.ApplicationSettings.RecentConnectionStrings)
+            {
+                RecentDatabases.Add(cs.Filename);
+            }
+
+            // auto-open last DB if requested
+            if (LoadLastDatabaseOnStartup && LiteDB.Studio.Wpf.Util.AppSettingsManager.IsLastDbExist())
+            {
+                var last = LiteDB.Studio.Wpf.Util.AppSettingsManager.ApplicationSettings.LastConnectionStrings?.Filename;
+                if (!string.IsNullOrEmpty(last))
+                {
+                    _ = OpenRecentAsync(last);
+                }
+            }
         }
 
         public IAsyncRelayCommand ConnectCommand { get; }
         public IRelayCommand DisconnectCommand { get; }
         public IRelayCommand RunCommand { get; }
-        public IRelayCommand AddTabCommand { get; }
+        public IRelayCommand NewTabCommand { get; }
         public IRelayCommand<TabViewModel> CloseTabCommand { get; }
         public IAsyncRelayCommand<object> OpenRecentCommand { get; }
         public IRelayCommand<object> OpenRecentWrapperCommand { get; }
         public IRelayCommand ClearRecentCommand { get; }
         public IRelayCommand ValidateRecentCommand { get; }
+        public IAsyncRelayCommand RefreshTreeCommand { get; }
+        public IRelayCommand<string> InsertSnippetCommand { get; }
 
         public TabViewModel? SelectedTab
         {
@@ -65,30 +107,12 @@ namespace LiteDB.Studio.Wpf.ViewModels
             {
                 if (SetProperty(ref _selectedTab, value))
                 {
-                    if (_selectedTab != null && _selectedTab.IsPlus)
+                    if (_selectedTab != null && _selectedTab.Title == "+")
                     {
                         AddNewTab();
                     }
                 }
             }
-        }
-
-        public bool IsConnected
-        {
-            get => _isConnected;
-            set => SetProperty(ref _isConnected, value);
-        }
-
-        public string CursorText
-        {
-            get => _cursorText;
-            set => SetProperty(ref _cursorText, value);
-        }
-
-        public string ElapsedText
-        {
-            get => _elapsedText;
-            set => SetProperty(ref _elapsedText, value);
         }
 
         public bool LoadLastDatabaseOnStartup
@@ -161,22 +185,19 @@ namespace LiteDB.Studio.Wpf.ViewModels
                 CursorText = "Opening " + filename;
                 ElapsedText = "Reading...";
 
-                await _dbService.ConnectAsync(cs);
+                await _dbService.ConnectAsync(cs.ToString(), System.Threading.CancellationToken.None);
 
                 // persist last connection and recent list using same AppSettingsManager calls
                 LiteDB.Studio.Wpf.Util.AppSettingsManager.ApplicationSettings.LastConnectionStrings = cs;
                 LiteDB.Studio.Wpf.Util.AppSettingsManager.AddToRecentList(cs);
 
                 IsConnected = true;
+                CurrentDatabase = filename;
 
                 // populate tree view to match WinForms behavior
                 try
                 {
-                    DatabaseTree.Clear();
-                    if (_dbService.Database is LiteDB.LiteDatabase db)
-                    {
-                        BuildDatabaseTree(db, filename);
-                    }
+                    await Tree.LoadRootNodesAsync();
                 }
                 catch
                 {
@@ -192,6 +213,7 @@ namespace LiteDB.Studio.Wpf.ViewModels
             {
                 CursorText = "Error: " + ex.Message;
                 IsConnected = false;
+                CurrentDatabase = string.Empty;
             }
             finally
             {
@@ -199,8 +221,36 @@ namespace LiteDB.Studio.Wpf.ViewModels
             }
         }
 
+        private async Task RefreshTreeAsync()
+        {
+            Tree.RootNodes.Clear();
+            await Tree.LoadRootNodesAsync();
+        }
+
+        private void InsertSnippet(string snippet)
+        {
+            if (SelectedTab == null || string.IsNullOrEmpty(snippet)) return;
+
+            var text = SelectedTab.EditorText ?? string.Empty;
+            var offset = SelectedTab.CaretOffset;
+
+            // Ensure offset is within bounds
+            if (offset < 0) offset = 0;
+            if (offset > text.Length) offset = text.Length;
+
+            SelectedTab.EditorText = text.Insert(offset, snippet);
+            SelectedTab.IsModified = true;
+        }
+
         private void Disconnect()
         {
+            var unsavedTabs = Tabs.Where(t => t.IsModified && !t.IsPlus).ToList();
+            if (unsavedTabs.Any())
+            {
+                var result = MessageBox.Show("You have unsaved changes in some tabs. Do you want to disconnect anyway?", "Unsaved Changes", MessageBoxButton.YesNo, MessageBoxImage.Warning);
+                if (result != MessageBoxResult.Yes) return;
+            }
+
             try
             {
                 _dbService.Disconnect();
@@ -208,6 +258,8 @@ namespace LiteDB.Studio.Wpf.ViewModels
             finally
             {
                 IsConnected = false;
+                CurrentDatabase = string.Empty;
+                TransactionActive = false;
                 CursorText = "Disconnected";
             }
         }
@@ -215,7 +267,7 @@ namespace LiteDB.Studio.Wpf.ViewModels
         private void Run()
         {
             // Execute current editor SQL (stub)
-            var sql = SelectedTab?.Content ?? string.Empty;
+            var sql = SelectedTab?.EditorText ?? string.Empty;
             // populate fake results table to show in grid
             PopulateSampleResults(sql);
             ElapsedText = "0s";
@@ -223,9 +275,9 @@ namespace LiteDB.Studio.Wpf.ViewModels
 
         private void AddNewTab()
         {
-            var newTab = new TabViewModel { Title = $"Query {Tabs.Count}", Content = "", IsPlus = false };
+            var newTab = new TabViewModel(_dbService) { Title = $"Query {Tabs.Count}" };
             // insert before plus tab
-            var plus = Tabs.FirstOrDefault(t => t.IsPlus);
+            var plus = Tabs.FirstOrDefault(t => t.Title == "+");
             if (plus != null)
             {
                 var idx = Tabs.IndexOf(plus);
@@ -244,21 +296,21 @@ namespace LiteDB.Studio.Wpf.ViewModels
             if (string.IsNullOrWhiteSpace(sql)) return;
 
             // if there's no selected tab or selected tab is the plus tab, or current content is empty -> set into current
-            if (SelectedTab == null || SelectedTab.IsPlus || string.IsNullOrWhiteSpace(SelectedTab.Content))
+            if (SelectedTab == null || SelectedTab.Title == "+" || string.IsNullOrWhiteSpace(SelectedTab.EditorText))
             {
                 // ensure there's a non-plus tab to place content
-                if (SelectedTab == null || SelectedTab.IsPlus)
+                if (SelectedTab == null || SelectedTab.Title == "+")
                 {
                     AddNewTab();
                 }
 
-                SelectedTab.Content = sql.Replace("\\n", "\n");
+                SelectedTab.EditorText = sql.Replace("\\n", "\n");
             }
             else
             {
                 // insert new tab before plus
-                var plus = Tabs.FirstOrDefault(t => t.IsPlus);
-                var newTab = new TabViewModel { Title = $"Query {Tabs.Count}", Content = sql.Replace("\\n", "\n"), IsPlus = false };
+                var plus = Tabs.FirstOrDefault(t => t.Title == "+");
+                var newTab = new TabViewModel(_dbService) { Title = $"Query {Tabs.Count}", EditorText = sql.Replace("\\n", "\n") };
                 if (plus != null)
                 {
                     var idx = Tabs.IndexOf(plus);
@@ -273,131 +325,19 @@ namespace LiteDB.Studio.Wpf.ViewModels
             }
         }
 
-        public void RefreshDatabaseTree()
-        {
-            try
-            {
-                DatabaseTree.Clear();
-                if (_dbService.Database is LiteDB.LiteDatabase db)
-                {
-                    // try to recover filename from last connection settings
-                    var filename = LiteDB.Studio.Wpf.Util.AppSettingsManager.ApplicationSettings.LastConnectionStrings?.Filename ?? "";
-                    BuildDatabaseTree(db, filename);
-                }
-            }
-            catch
-            {
-                // ignore
-            }
-        }
 
-        private void BuildDatabaseTree(LiteDB.LiteDatabase db, string filename)
-        {
-            var root = new DbTreeNode { Header = Path.GetFileName(filename), Icon = "pack://application:,,,/LiteDB.Studio.Wpf;component/Resources/database.png" };
-            var system = new DbTreeNode { Header = "System", Icon = "pack://application:,,,/LiteDB.Studio.Wpf;component/Resources/folder_page.png" };
-            root.Children.Add(system);
 
-            var sc = db.GetCollection("$cols")
-                .Query()
-                .Where("type = 'system'")
-                .OrderBy("name")
-                .ToDocuments();
 
-            foreach (var doc in sc)
-            {
-                var name = doc["name"].AsString;
-                system.Children.Add(new DbTreeNode { Header = name, Tag = $"SELECT $ FROM {name}", Icon = "pack://application:,,,/LiteDB.Studio.Wpf;component/Resources/page_white_gear.png" });
-            }
 
-            foreach (var key in db.GetCollectionNames().OrderBy(x => x))
-            {
-                root.Children.Add(new DbTreeNode { Header = key, Tag = $"SELECT $ FROM {key};", Icon = "pack://application:,,,/LiteDB.Studio.Wpf;component/Resources/table.png" });
-            }
 
-            DatabaseTree.Add(root);
-        }
 
-        public long? GetCollectionCount(string name)
-        {
-            try
-            {
-                if (_dbService.Database is LiteDB.LiteDatabase db)
-                {
-                    var col = db.GetCollection(name);
-                    return col?.Count();
-                }
-            }
-            catch { }
-            return null;
-        }
 
-        public string[] GetCollectionIndexes(string name)
-        {
-            try
-            {
-                if (_dbService.Database is LiteDB.LiteDatabase db)
-                {
-                    // try system collection $indexes
-                    try
-                    {
-                        var coll = db.GetCollection("$indexes");
-                        var docs = coll.Query().Where($"collection = '{name}'").ToDocuments();
-                        return docs.Select(d => d.ToString()).ToArray();
-                    }
-                    catch
-                    {
-                        return Array.Empty<string>();
-                    }
-                }
-            }
-            catch { }
-            return Array.Empty<string>();
-        }
 
-        public void DropCollection(string name)
-        {
-            try
-            {
-                if (_dbService.Database is LiteDB.LiteDatabase db)
-                {
-                    db.DropCollection(name);
-                    RefreshDatabaseTree();
-                }
-            }
-            catch { }
-        }
 
-        public bool RenameCollection(string oldName, string newName)
-        {
-            try
-            {
-                if (_dbService.Database is LiteDB.LiteDatabase db)
-                {
-                    db.RenameCollection(oldName, newName);
-                    RefreshDatabaseTree();
-                    return true;
-                }
-            }
-            catch { }
-            return false;
-        }
 
-        public void ExportCollectionToJson(string name, string path)
-        {
-            try
-            {
-                if (_dbService.Database is LiteDB.LiteDatabase db)
-                {
-                    var col = db.GetCollection(name);
-                    using var sw = new System.IO.StreamWriter(path);
-                    foreach (var doc in col.FindAll())
-                    {
-                        sw.WriteLine(doc.ToString());
-                    }
-                }
-            }
-            catch { }
-        }
+
+
+
 
         private void CloseTab(TabViewModel tab)
         {
@@ -420,17 +360,19 @@ namespace LiteDB.Studio.Wpf.ViewModels
             try
             {
                 var cs = new LiteDB.ConnectionString(fname);
-                await _dbService.ConnectAsync(cs);
+                await _dbService.ConnectAsync(cs.ToString(), System.Threading.CancellationToken.None);
 
                 LiteDB.Studio.Wpf.Util.AppSettingsManager.ApplicationSettings.LastConnectionStrings = cs;
                 LiteDB.Studio.Wpf.Util.AppSettingsManager.AddToRecentList(cs);
 
                 IsConnected = true;
+                CurrentDatabase = fname;
             }
             catch (Exception ex)
             {
                 CursorText = "Error: " + ex.Message;
                 IsConnected = false;
+                CurrentDatabase = string.Empty;
             }
         }
 
@@ -464,6 +406,16 @@ namespace LiteDB.Studio.Wpf.ViewModels
                 row[1] = sql + " - row " + i;
                 CurrentResults.Rows.Add(row);
             }
+        }
+
+        private void OnConnectionStateChanged(object? sender, ConnectionStateChangedEventArgs e)
+        {
+            // Handle connection state changes if needed
+        }
+
+        private void OnTransactionStateChanged(object? sender, TransactionStateChangedEventArgs e)
+        {
+            TransactionActive = e.TransactionActive;
         }
     }
 }
