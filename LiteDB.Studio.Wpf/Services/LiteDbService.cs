@@ -46,7 +46,7 @@ namespace LiteDB.Studio.Wpf.Services
                 try
                 {
                     var names = _db.GetCollectionNames().ToArray();
-                    Log.Debug("Connected to LiteDB. Connection string: {Conn}. Collections found: {Count} - {Names}", connectionString, names.Length, string.Join(", ", names));
+                    Log.Information("Connected to LiteDB. Connection string: {Conn}. Collections found: {Count}", connectionString, names.Length);
                 }
                 catch (Exception ex)
                 {
@@ -166,7 +166,7 @@ namespace LiteDB.Studio.Wpf.Services
             if (!IsConnected) throw new InvalidOperationException("Not connected");
 
             var names = _db!.GetCollectionNames().ToArray();
-            Log.Debug("GetCollectionNamesAsync returning {Count} collections: {Names}", names.Length, string.Join(", ", names));
+            Log.Information("GetCollectionNamesAsync returning {Count} collections", names.Length);
             return Task.FromResult((IEnumerable<string>)names);
         }
 

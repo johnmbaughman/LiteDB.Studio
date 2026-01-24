@@ -57,7 +57,7 @@ namespace LiteDB.Studio.Wpf.Converters
                 }
             }
 
-            return value.ToString();
+            return value?.ToString() ?? string.Empty;
         }
 
         public object ConvertBack(object value, Type targetType, object parameter, CultureInfo culture)

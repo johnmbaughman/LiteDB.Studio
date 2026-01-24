@@ -24,7 +24,7 @@ namespace LiteDB.Studio.Wpf.Util
             }
         }
 
-        private void SourcePropertyChanged(object sender, System.EventArgs e)
+        private void SourcePropertyChanged(object? sender, System.EventArgs e)
         {
             if (_isUpdating) return;
 

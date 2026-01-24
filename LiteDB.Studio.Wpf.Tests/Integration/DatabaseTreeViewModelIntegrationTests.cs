@@ -30,8 +30,8 @@ namespace LiteDB.Studio.Wpf.Tests.Integration
             var root = vm.RootNodes.First();
             Assert.Equal("Database", root.Header);
             // root should contain a System folder and our collection
-            Assert.True(root.Children.Any(c => c.Header == "System"));
-            Assert.True(root.Children.Any(c => c.Header == "test_collection"));
+            Assert.Contains("System", root.Children.Select(c => c.Header));
+            Assert.Contains("test_collection", root.Children.Select(c => c.Header));
         }
     }
 }

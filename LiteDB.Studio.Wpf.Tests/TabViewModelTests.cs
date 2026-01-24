@@ -56,5 +56,19 @@ namespace LiteDB.Studio.Wpf.Tests
             Assert.NotNull(vm.LastResult);
             Assert.Equal(1, vm.LastResult.RowCount);
         }
+
+        [Fact]
+        public async Task ShowCompletionCommand_PopulatesLastCompletions()
+        {
+            var mock = Substitute.For<LiteDB.Studio.Wpf.Services.IDatabaseService>();
+            mock.GetCollectionNamesAsync(Arg.Any<CancellationToken>()).Returns(new[] { "users", "products" });
+
+            var vm = new LiteDB.Studio.Wpf.ViewModels.TabViewModel(mock);
+
+            await vm.ShowCompletionCommand.ExecuteAsync(null);
+
+            Assert.NotNull(vm.LastCompletions);
+            Assert.Contains(vm.LastCompletions, c => c.Text == "users");
+        }
     }
 }

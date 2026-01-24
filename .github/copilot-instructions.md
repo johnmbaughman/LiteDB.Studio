@@ -15,6 +15,7 @@ Guide Copilot to produce helpful, safe, concise, and review‑ready output acros
 - All agent tools must use PowerShell; Python is not reliably available.
 - Create PowerShell script tools in the `.\.github\tools` directory.
 - Use PowerShell scripts to avoid command line formatting issues in prompts.
+- The `LiteDB` project is a 3rd party library project and **must** not be modified; find solutions that **do not** modify the `LiteDB` project.
 
 ## 2) Code & Change Quality
 - Match the **existing style and patterns** visible in the current repo; do not introduce unrelated paradigms.
@@ -27,6 +28,7 @@ Guide Copilot to produce helpful, safe, concise, and review‑ready output acros
 - When adding or modifying code, propose **targeted tests** (unit/behavioral) that cover success, failure, and edge cases.
 - Favor **deterministic** tests with clear Arrange‑Act‑Assert structure or equivalent.
 - Never include **secrets** or credentials; use environment/configuration mechanisms and redact sensitive values in examples.
+- **Always** complete a build before running tests; fix any issues first.
 
 ## 4) Security & Privacy (universal)
 - Validate and sanitize **all external inputs**; prefer safe defaults.

@@ -1,12 +1,15 @@
 using CommunityToolkit.Mvvm.ComponentModel;
 using CommunityToolkit.Mvvm.Input;
 using LiteDB.Studio.Wpf.Services;
+using LiteDB;
 using Microsoft.Win32;
 using System;
 using System.Collections.ObjectModel;
+using System.Collections.Generic;
 using System.Data;
 using System.IO;
 using System.Linq;
+using System.Globalization;
 using System.Threading.Tasks;
 using System.Windows;
 
@@ -185,7 +188,8 @@ namespace LiteDB.Studio.Wpf.ViewModels
                 CursorText = "Opening " + filename;
                 ElapsedText = "Reading...";
 
-                await _dbService.ConnectAsync(cs.ToString(), System.Threading.CancellationToken.None);
+                var connectionString = BuildConnectionString(cs);
+                await _dbService.ConnectAsync(connectionString, System.Threading.CancellationToken.None);
 
                 // persist last connection and recent list using same AppSettingsManager calls
                 LiteDB.Studio.Wpf.Util.AppSettingsManager.ApplicationSettings.LastConnectionStrings = cs;
@@ -227,7 +231,7 @@ namespace LiteDB.Studio.Wpf.ViewModels
             await Tree.LoadRootNodesAsync();
         }
 
-        private void InsertSnippet(string snippet)
+        private void InsertSnippet(string? snippet)
         {
             if (SelectedTab == null || string.IsNullOrEmpty(snippet)) return;
 
@@ -266,16 +270,24 @@ namespace LiteDB.Studio.Wpf.ViewModels
 
         private void Run()
         {
-            // Execute current editor SQL (stub)
-            var sql = SelectedTab?.EditorText ?? string.Empty;
-            // populate fake results table to show in grid
-            PopulateSampleResults(sql);
-            ElapsedText = "0s";
+            // Delegate run to selected tab's async RunCommand (executes selection or entire buffer)
+            if (SelectedTab != null)
+            {
+                try
+                {
+                    _ = SelectedTab.RunCommand.ExecuteAsync(null);
+                }
+                catch (Exception ex)
+                {
+                    CursorText = "Error executing query: " + ex.Message;
+                }
+            }
         }
 
         private void AddNewTab()
         {
             var newTab = new TabViewModel(_dbService) { Title = $"Query {Tabs.Count}" };
+
             // insert before plus tab
             var plus = Tabs.FirstOrDefault(t => t.Title == "+");
             if (plus != null)
@@ -304,6 +316,7 @@ namespace LiteDB.Studio.Wpf.ViewModels
                     AddNewTab();
                 }
 
+                SelectedTab = SelectedTab ?? throw new InvalidOperationException("SelectedTab is null after AddNewTab");
                 SelectedTab.EditorText = sql.Replace("\\n", "\n");
             }
             else
@@ -339,11 +352,11 @@ namespace LiteDB.Studio.Wpf.ViewModels
 
 
 
-        private void CloseTab(TabViewModel tab)
+        private void CloseTab(TabViewModel? tab)
         {
             if (tab == null || tab.IsPlus) return;
             var idx = Tabs.IndexOf(tab);
-            Tabs.Remove(tab);
+            if (idx >= 0) Tabs.Remove(tab);
             if (Tabs.Count > 0)
             {
                 SelectedTab = Tabs[Math.Max(0, idx - 1)];
@@ -355,12 +368,14 @@ namespace LiteDB.Studio.Wpf.ViewModels
             var fname = filename as string;
             if (string.IsNullOrEmpty(fname)) return;
 
+
             CursorText = "Opening: " + fname;
 
             try
             {
                 var cs = new LiteDB.ConnectionString(fname);
-                await _dbService.ConnectAsync(cs.ToString(), System.Threading.CancellationToken.None);
+                var connectionString = BuildConnectionString(cs);
+                await _dbService.ConnectAsync(connectionString, System.Threading.CancellationToken.None);
 
                 LiteDB.Studio.Wpf.Util.AppSettingsManager.ApplicationSettings.LastConnectionStrings = cs;
                 LiteDB.Studio.Wpf.Util.AppSettingsManager.AddToRecentList(cs);
@@ -408,9 +423,47 @@ namespace LiteDB.Studio.Wpf.ViewModels
             }
         }
 
+        private static string BuildConnectionString(ConnectionString cs)
+        {
+            var parts = new List<string>();
+
+            if (!string.IsNullOrWhiteSpace(cs.Filename))
+            {
+                parts.Add($"Filename={cs.Filename}");
+            }
+
+            parts.Add($"Connection={(cs.Connection == ConnectionType.Shared ? "shared" : "direct")}");
+
+            if (!string.IsNullOrWhiteSpace(cs.Password)) parts.Add($"Password={cs.Password}");
+            if (cs.ReadOnly) parts.Add("ReadOnly=true");
+            if (cs.Upgrade) parts.Add("Upgrade=true");
+            if (cs.AutoRebuild) parts.Add("Auto-Rebuild=true");
+            if (cs.InitialSize > 0) parts.Add($"Initial Size={cs.InitialSize.ToString(CultureInfo.InvariantCulture)}");
+            if (cs.Collation != null) parts.Add($"Collation={cs.Collation.ToString()}");
+
+            return string.Join(";", parts);
+        }
+
         private void OnConnectionStateChanged(object? sender, ConnectionStateChangedEventArgs e)
         {
-            // Handle connection state changes if needed
+            // Open a fresh query tab when the database connects (if no user tabs exist)
+            try
+            {
+                if (e.IsConnected)
+                {
+                    Serilog.Log.Information("Database connected - ensuring a query tab is available");
+                    var hasUserTabs = Tabs.Any(t => !t.IsPlus);
+                    if (!hasUserTabs)
+                    {
+                        AddNewTab();
+                        Serilog.Log.Information("Added new query tab on connect");
+                    }
+                }
+            }
+            catch (Exception ex)
+            {
+                Serilog.Log.Warning(ex, "OnConnectionStateChanged handler failed");
+            }
         }
 
         private void OnTransactionStateChanged(object? sender, TransactionStateChangedEventArgs e)

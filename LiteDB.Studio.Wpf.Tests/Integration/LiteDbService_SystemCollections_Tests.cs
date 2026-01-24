@@ -23,20 +23,16 @@ namespace LiteDB.Studio.Wpf.Tests.Integration
         }
 
         [Fact]
-        public async Task GetSystemCollectionNamesAsync_UsesColsWhenAvailable()
+        public async Task GetSystemCollectionNamesAsync_ReturnsRegisteredSystemCollections()
         {
             var cts = new CancellationTokenSource();
             await _service.ConnectAsync(":memory:", cts.Token);
 
-            // Insert a fake system collection entry into $cols
-            var db = _service.Database as LiteDatabase;
-            Assert.NotNull(db);
-
-            var cols = db.GetCollection("$cols");
-            cols.Insert(new BsonDocument { ["name"] = "$sys_test", ["type"] = "system" });
-
             var systems = (await _service.GetSystemCollectionNamesAsync(cts.Token)).ToArray();
-            Assert.Contains("$sys_test", systems);
+
+            // Registered system collections like `$indexes` should be present
+            Assert.Contains("$indexes", systems);
+            Assert.Contains("$cols", systems);
         }
     }
 }

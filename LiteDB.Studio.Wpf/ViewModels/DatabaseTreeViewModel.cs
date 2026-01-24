@@ -93,6 +93,9 @@ namespace LiteDB.Studio.Wpf.ViewModels
                 var collectionNames = (await _databaseService.GetCollectionNamesAsync(cancellationToken)).ToList();
                 var systemCollectionNames = (await _databaseService.GetSystemCollectionNamesAsync(cancellationToken)).ToList();
 
+                // Remove any names reported as system collections to avoid duplicates and miscategorization
+                collectionNames = collectionNames.Except(systemCollectionNames).ToList();
+
                 Serilog.Log.Debug("Loading database tree - collections: {Count}, system: {SystemCount}", collectionNames.Count, systemCollectionNames.Count);
 
                 Action<string> insertSnippet = snippet => InsertSnippetRequested?.Invoke(this, snippet);
@@ -106,14 +109,14 @@ namespace LiteDB.Studio.Wpf.ViewModels
                     IconUri = "pack://application:,,,/Resources/Icons/database.png"
                 };
 
-                // Add system collections under root
+                // Add system collections under root (sorted ascending)
                 var systemNode = new DbTreeNode(_databaseService, insertSnippet)
                 {
                     Header = "System",
                     Tag = "systemfolder",
                     IconUri = "pack://application:,,,/Resources/Icons/system.png" // or a folder icon, but using system.png
                 };
-                foreach (var name in systemCollectionNames)
+                foreach (var name in systemCollectionNames.OrderBy(n => n, System.StringComparer.OrdinalIgnoreCase))
                 {
                     var node = new DbTreeNode(_databaseService, insertSnippet)
                     {
@@ -125,8 +128,8 @@ namespace LiteDB.Studio.Wpf.ViewModels
                 }
                 rootNode.Children.Add(systemNode);
 
-                // Add user collections directly under root
-                foreach (var name in collectionNames)
+                // Add user collections directly under root (sorted ascending)
+                foreach (var name in collectionNames.OrderBy(n => n, System.StringComparer.OrdinalIgnoreCase))
                 {
                     var node = new DbTreeNode(_databaseService, insertSnippet)
                     {

@@ -56,5 +56,37 @@ namespace LiteDB.Studio.Wpf.Tests.ViewModels
             Assert.Equal(2, viewModel.SystemCount);
             Assert.Equal("Collections: 2 / System: 2", viewModel.StatusText);
         }
+
+        [Fact]
+        public async Task LoadRootNodesAsync_FiltersOutSystemCollectionsFromUserList()
+        {
+            // Arrange
+            var mockService = Substitute.For<IDatabaseService>();
+            mockService.GetCollectionNamesAsync(default).ReturnsForAnyArgs(["collection1", "system1"]);
+            mockService.GetSystemCollectionNamesAsync(default).ReturnsForAnyArgs(["system1", "system2"]);
+
+            var viewModel = new DatabaseTreeViewModel(mockService);
+
+            // Act
+            await viewModel.LoadRootNodesAsync();
+
+            // Assert
+            Assert.Single(viewModel.RootNodes);
+            var root = viewModel.RootNodes[0];
+
+            // system folder + single user collection
+            Assert.Equal(2, root.Children.Count);
+            var systemNode = root.Children[0];
+            Assert.Equal(2, systemNode.Children.Count);
+
+            var col = root.Children[1];
+            Assert.Equal("collection1", col.Header);
+            Assert.Equal("collection", col.Tag);
+
+            // Counts and status
+            Assert.Equal(1, viewModel.CollectionsCount);
+            Assert.Equal(2, viewModel.SystemCount);
+            Assert.Equal("Collections: 1 / System: 2", viewModel.StatusText);
+        }
     }
 }

@@ -50,15 +50,20 @@ namespace LiteDB.Studio.Wpf.ViewModels
         [ObservableProperty]
         private int _selectedResultTabIndex;
 
+        [ObservableProperty]
+        private System.Collections.Generic.IEnumerable<Services.CompletionItem>? _lastCompletions;
+
         public TabViewModel(IDatabaseService databaseService)
         {
             _databaseService = databaseService ?? throw new ArgumentNullException(nameof(databaseService));
             RunCommand = new AsyncRelayCommand(ExecuteRunAsync);
+            ShowCompletionCommand = new AsyncRelayCommand(ExecuteShowCompletionAsync);
             ResultGridViewModel = new ResultGridViewModel(_databaseService);
             CloseCommand = new RelayCommand(ExecuteClose);
         }
 
         public IAsyncRelayCommand RunCommand { get; }
+        public IAsyncRelayCommand ShowCompletionCommand { get; }
         public IRelayCommand CloseCommand { get; }
 
         private async Task ExecuteRunAsync()
@@ -80,12 +85,16 @@ namespace LiteDB.Studio.Wpf.ViewModels
                     query = EditorText;
                 }
 
+                Serilog.Log.Information("Executing query from Tab '{Title}' (len={Len})", Title, query?.Length ?? 0);
                 var result = await _databaseService.ExecuteAsync(query, CancellationToken.None);
                 LastResult = result;
                 IsResultLoaded = true;
+                SelectedResultTabIndex = 0; // show Grid tab when results are available
+                Serilog.Log.Information("Query executed - Rows: {Count}, Columns: {Cols}", result?.RowCount, result?.Columns?.Count);
             }
             catch (Exception ex)
             {
+                Serilog.Log.Warning(ex, "Query execution failed in Tab '{Title}'", Title);
                 LastError = ex.Message;
                 IsResultLoaded = false;
             }
@@ -101,6 +110,40 @@ namespace LiteDB.Studio.Wpf.ViewModels
         partial void OnLastResultChanged(QueryResult? value)
         {
             ResultGridViewModel.QueryResult = value;
+        }
+
+        /// <summary>
+        /// Returns collection completion items by querying the live database service.
+        /// </summary>
+        public async System.Threading.Tasks.Task<System.Collections.Generic.IEnumerable<Services.CompletionItem>> GetCollectionCompletionsAsync(System.Threading.CancellationToken cancellationToken = default)
+        {
+            var list = new System.Collections.Generic.List<Services.CompletionItem>();
+            try
+            {
+                var cols = await Services.SqlCompletionProvider.GetCollectionCompletionsAsync(_databaseService, cancellationToken);
+                foreach (var c in cols)
+                {
+                    list.Add(new Services.CompletionItem(c.Text, c.Description?.ToString(), c.Tag));
+                }
+            }
+            catch
+            {
+                // ignore collection completion errors
+            }
+
+            return list;
+        }
+
+        private async System.Threading.Tasks.Task ExecuteShowCompletionAsync()
+        {
+            try
+            {
+                LastCompletions = await GetCollectionCompletionsAsync(System.Threading.CancellationToken.None);
+            }
+            catch
+            {
+                LastCompletions = System.Array.Empty<Services.CompletionItem>();
+            }
         }
     }
 }

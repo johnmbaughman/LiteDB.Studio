@@ -15,7 +15,6 @@ namespace LiteDB.Studio.Wpf.ViewModels
         private readonly Action<string>? _insertSnippetAction;
         private readonly Func<string, bool>? _confirmer;
 
-        public event EventHandler<string>? InsertSnippetRequested;
 
         public DbTreeNode(IDatabaseService databaseService, Action<string>? insertSnippetAction = null, Func<string, bool>? confirmer = null)
         {
@@ -105,12 +104,14 @@ namespace LiteDB.Studio.Wpf.ViewModels
         [RelayCommand]
         private void InsertSnippet()
         {
-            if (Tag != "collection" && Tag != "field") return;
+            // Support systems collections the same way as regular collections (double-click / insert snippet)
+            if (Tag != "collection" && Tag != "field" && Tag != "system") return;
 
             string snippet;
-            if (Tag == "collection")
+            if (Tag == "collection" || Tag == "system")
             {
-                snippet = $"SELECT * FROM {Header};";
+                // Use $ as the projection operator for fetching the full document
+                snippet = $"SELECT $ FROM {Header};";
             }
             else
             {

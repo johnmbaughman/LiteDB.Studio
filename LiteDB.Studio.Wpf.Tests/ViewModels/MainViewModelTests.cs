@@ -40,6 +40,24 @@ namespace LiteDB.Studio.Wpf.Tests.ViewModels
         }
 
         [Fact]
+        public void ConnectionAddsNewTabWhenNoUserTabsExist()
+        {
+            var mockDbService = Substitute.For<LiteDB.Studio.Wpf.Services.IDatabaseService>();
+            var vm = new LiteDB.Studio.Wpf.ViewModels.MainViewModel(mockDbService);
+
+            // Initially there's only the plus tab
+            Assert.Single(vm.Tabs);
+            Assert.Equal("+", vm.Tabs[0].Title);
+
+            // Fire connection event
+            mockDbService.ConnectionStateChanged += Raise.EventWith(new LiteDB.Studio.Wpf.Services.ConnectionStateChangedEventArgs(true));
+
+            // Now expect a new user tab to be added and selected
+            Assert.True(vm.Tabs.Count >= 2);
+            Assert.NotEqual("+", vm.SelectedTab?.Title);
+        }
+
+        [Fact]
         public void RunCommand_ExecutesSelection_WhenSelectionExists()
         {
             var mockDbService = Substitute.For<LiteDB.Studio.Wpf.Services.IDatabaseService>();

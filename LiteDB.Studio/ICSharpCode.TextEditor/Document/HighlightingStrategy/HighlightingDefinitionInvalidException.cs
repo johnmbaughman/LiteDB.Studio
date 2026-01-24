@@ -29,9 +29,5 @@ namespace ICSharpCode.TextEditor.Document
 		public HighlightingDefinitionInvalidException(string message, Exception innerException) : base(message, innerException)
 		{
 		}
-		
-		protected HighlightingDefinitionInvalidException(SerializationInfo info, StreamingContext context) : base(info, context)
-		{
-		}
 	}
 }

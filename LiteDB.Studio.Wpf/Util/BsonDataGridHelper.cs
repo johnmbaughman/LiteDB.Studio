@@ -33,7 +33,7 @@ namespace LiteDB.Studio.Wpf.Util
             }
         }
 
-        private static void Grid_LoadingRow(object sender, DataGridRowEventArgs e)
+        private static void Grid_LoadingRow(object? sender, DataGridRowEventArgs e)
         {
             try
             {

@@ -45,6 +45,7 @@
 ## Verification additions (editor porting)
 
 - Before merging editor-related changes, PRs must include a verification step ensuring all `ICSharpCode.TextEditor` references have been removed from `LiteDB.Studio.Wpf` sources. This can be a CI check or a documented local verification step using `Select-String`/`git grep`.
+- Automated verification script added: `.github/scripts/verify-no-icsharpcodetexteditor.ps1` which fails with exit code 1 when references are found; include this script as a required job in the PR pipeline for editor-related changes.
 
 
 ## Current Status

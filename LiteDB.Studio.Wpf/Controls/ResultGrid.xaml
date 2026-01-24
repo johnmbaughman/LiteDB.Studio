@@ -7,6 +7,19 @@
              d:DesignHeight="300" d:DesignWidth="600">
     <UserControl.Resources>
         <BooleanToVisibilityConverter x:Key="BoolToVis" />
+        <!-- Row header style that removes the resize thumb and prevents resize cursor -->
+        <Style x:Key="DataGridRowHeaderNoResizeStyle" TargetType="DataGridRowHeader">
+            <Setter Property="Cursor" Value="Arrow" />
+            <Setter Property="Template">
+                <Setter.Value>
+                    <ControlTemplate TargetType="DataGridRowHeader">
+                        <Border Background="{TemplateBinding Background}" BorderBrush="{TemplateBinding BorderBrush}" BorderThickness="{TemplateBinding BorderThickness}">
+                            <ContentPresenter Content="{TemplateBinding Content}" VerticalAlignment="Center" HorizontalAlignment="Center" />
+                        </Border>
+                    </ControlTemplate>
+                </Setter.Value>
+            </Setter>
+        </Style>
     </UserControl.Resources>
     <Grid>
         <Grid.RowDefinitions>
@@ -20,8 +33,13 @@
                   VirtualizingStackPanel.IsVirtualizing="True"
                   AutoGenerateColumns="False"
                   IsReadOnly="False"
-                  SelectionMode="Single"
-                  SelectionUnit="FullRow">
+                  SelectionMode="Extended"
+                  SelectionUnit="CellOrRowHeader"
+                  RowHeaderWidth="40"
+                  CanUserResizeRows="False"
+                  CanUserResizeColumns="True"
+                  RowHeaderStyle="{StaticResource DataGridRowHeaderNoResizeStyle}"
+                  LoadingRow="ResultsDataGrid_LoadingRow">
         </DataGrid>
     </Grid>
 </UserControl>

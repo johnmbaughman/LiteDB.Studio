@@ -16,7 +16,22 @@ namespace LiteDB.Studio.Wpf.Views
         {
             if (TreeView.SelectedItem is DbTreeNode node)
             {
-                node.InsertSnippetCommand.Execute(null);
+                // On double-click, open a NEW editor tab and insert the snippet (always create new tab)
+                string snippet;
+                // System collections should behave like regular collections for double-click insertion
+                if (node.Tag == "collection" || node.Tag == "system") snippet = $"SELECT $ FROM {node.Header};";
+                else snippet = node.Header;
+
+                // Try to find MainViewModel via Window DataContext and call AddSqlSnippet to force a new tab insertion
+                if (Application.Current?.MainWindow?.DataContext is MainViewModel vm)
+                {
+                    vm.AddSqlSnippet(snippet);
+                }
+                else
+                {
+                    // Fallback: invoke the node command which will insert into current tab or create one if empty
+                    node.InsertSnippetCommand.Execute(null);
+                }
             }
         }
     }

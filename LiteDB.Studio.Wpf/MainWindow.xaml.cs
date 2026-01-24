@@ -36,6 +36,8 @@ namespace LiteDB.Studio.Wpf
             {
                 vmContext.Initialize();
             }
+
+
         }
 
         private void LoadLastDb_Click(object sender, RoutedEventArgs e)
@@ -49,6 +51,8 @@ namespace LiteDB.Studio.Wpf
                 _ = vm.OpenRecentAsync(last);
             }
         }
+
+
 
 
 

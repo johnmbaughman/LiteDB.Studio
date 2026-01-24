@@ -40,5 +40,24 @@ namespace LiteDB.Studio.Wpf.Tests.ViewModels
             Assert.Equal("field", node.Children[1].Tag);
             Assert.Equal("pack://application:,,,/Resources/Icons/field.png", node.Children[1].IconUri);
         }
+
+        [Fact]
+        public void InsertSnippet_InsertsCollectionSnippet_ForSystemTag()
+        {
+            // Arrange
+            string? inserted = null;
+            var mockService = Substitute.For<IDatabaseService>();
+            var node = new DbTreeNode(mockService, snippet => inserted = snippet)
+            {
+                Header = "system.$cols",
+                Tag = "system"
+            };
+
+            // Act
+            node.InsertSnippetCommand.Execute(null);
+
+            // Assert
+            Assert.Equal("SELECT $ FROM system.$cols;", inserted);
+        }
     }
 }

@@ -136,6 +136,7 @@ This document breaks down the WPF port into prioritized, executable tasks organi
 
 - [X] T065 [US2] Handle DataGrid.CellEditEnding event in ResultGrid.xaml.cs to invoke IDatabaseService.UpdateDocumentFieldAsync
 - [X] T066 [US2] Add error handling for UpdateDocumentFieldAsync failures in ResultGrid.xaml.cs (show error message, revert cell value)
+- [ ] T149 [US2] Rework and fix ResultGrid cell-edit workflow in LiteDB.Studio.Wpf/Controls/ResultGrid.xaml.cs and add tests in LiteDB.Studio.Wpf.Tests/Controls/ResultGridTests.cs to ensure updates are reliably committed, failures revert values, and errors surface to the UI
 - [X] T067 [US2] Create ResultTextView control in LiteDB.Studio.Wpf/Controls/ResultTextView.xaml and ResultTextView.xaml.cs (display QueryResult as JSON)
 - [X] T068 [P] [US2] Create ParametersView control in LiteDB.Studio.Wpf/Controls/ParametersView.xaml and ParametersView.xaml.cs (display query parameters if supported)
 - [X] T069 [US2] Add tab selector (Grid/Text/Parameters) to result view in MainWindow.xaml tab content template
@@ -194,13 +195,13 @@ This document breaks down the WPF port into prioritized, executable tasks organi
 
 ### Tasks
 
-- [ ] T092 [US4] Create SqlCompletionProvider class in LiteDB.Studio.Wpf/Services/SqlCompletionProvider.cs implementing AvalonEdit ICompletionData
-- [ ] T093 [US4] Implement SqlCompletionProvider to return collection names from IDatabaseService.GetCollectionNamesAsync in LiteDB.Studio.Wpf/Services/SqlCompletionProvider.cs
-- [ ] T094 [US4] Add SQL keywords (SELECT, INSERT, UPDATE, DELETE, etc.) to SqlCompletionProvider in LiteDB.Studio.Wpf/Services/SqlCompletionProvider.cs
-- [ ] T095 [US4] Wire Ctrl+Space to show AvalonEdit completion window in MainWindow.xaml.cs (hook TextArea.TextEntering event)
-- [ ] T096 [US4] Bind F5 to MainViewModel.RunCommand in MainWindow.xaml (InputBindings or KeyGesture)
-- [ ] T097 [US4] Update TabViewModel.RunCommand in LiteDB.Studio.Wpf/ViewModels/TabViewModel.cs to check SelectionLength and execute selected text vs entire buffer (already implemented in T034, verify logic)
-- [ ] T098 [US4] Add unit test for completion provider (mock GetCollectionNamesAsync, verify completion list contains collection names and keywords)
+- [X] T092 [US4] Create SqlCompletionProvider class in LiteDB.Studio.Wpf/Services/SqlCompletionProvider.cs implementing AvalonEdit ICompletionData
+- [X] T093 [US4] Implement SqlCompletionProvider to return collection names from IDatabaseService.GetCollectionNamesAsync in LiteDB.Studio.Wpf/Services/SqlCompletionProvider.cs
+- [X] T094 [US4] Add SQL keywords (SELECT, INSERT, UPDATE, DELETE, etc.) to SqlCompletionProvider in LiteDB.Studio.Wpf/Services/SqlCompletionProvider.cs (functions added from LiteDB docs)
+- [X] T095 [US4] Wire Ctrl+Space to show AvalonEdit completion window in MainWindow.xaml.cs (hook TextArea.TextEntering event)
+- [X] T096 [US4] Bind F5 to MainViewModel.RunCommand in MainWindow.xaml (InputBindings or KeyGesture)
+- [X] T097 [US4] Update TabViewModel.RunCommand in LiteDB.Studio.Wpf/ViewModels/TabViewModel.cs to check SelectionLength and execute selected text vs entire buffer (already implemented in T034, verify logic)
+- [X] T098 [US4] Add unit test for completion provider (mock GetCollectionNamesAsync, verify completion list contains collection names and keywords)
 
 ---
 
@@ -338,12 +339,30 @@ This document breaks down the WPF port into prioritized, executable tasks organi
 
 These tasks were added to reflect the spec and plan updates that mandate porting `ICSharpCode.TextEditor` usages to AvalonEdit and preferring attached properties/behaviors for MVVM bindings.
 
-- [ ] T139 Implement AvalonEdit attached properties/behaviors in LiteDB.Studio.Wpf/Controls/AvalonEditBehaviors.cs exposing: `EditorText`, `CaretOffset`/`LineColumn`, `SelectionStart`, `SelectionLength`, `IsModified` and routed events to update bound `TabViewModel` properties.
-- [ ] T140 Add unit tests for AvalonEdit attached properties in LiteDB.Studio.Wpf.Tests/ViewModels/AvalonEditBehaviorsTests.cs (create `TextEditor` instance, apply attached properties, verify `TabViewModel`-observable updates via a test helper).
-- [ ] T141 Update MainWindow.xaml tab template and any EditorTab.xaml to use attached properties/behaviors rather than direct code-behind wiring (confirm binding paths and command hooks).
-- [ ] T142 Update `specs/002-wpf-port/checklists/requirements.md` to include PR verification step: repository search for `ICSharpCode.TextEditor` within `LiteDB.Studio.Wpf` must return zero results before merge.
-- [ ] T143 Add PR checklist item and a CI verification script (or pipeline step) that fails the PR if `ICSharpCode.TextEditor` references remain in `LiteDB.Studio.Wpf` sources (implement search using PowerShell `Select-String` or `git grep`).
- 
+- [X] T139 Implement AvalonEdit attached properties/behaviors in LiteDB.Studio.Wpf/Controls/AvalonEditBehaviors.cs exposing: `EditorText`, `CaretOffset`/`LineColumn`, `SelectionStart`, `SelectionLength`, `IsModified` and routed events to update bound `TabViewModel` properties.
+- [X] T140 Add unit tests for AvalonEdit attached properties in LiteDB.Studio.Wpf.Tests/ViewModels/AvalonEditBehaviorsTests.cs (create `TextEditor` instance, apply attached properties, verify `TabViewModel`-observable updates via a test helper).
+- [X] T141 Update MainWindow.xaml tab template and any EditorTab.xaml to use attached properties/behaviors rather than direct code-behind wiring (confirm binding paths and command hooks).
+- [X] T142 Update `specs/002-wpf-port/checklists/requirements.md` to include PR verification step: repository search for `ICSharpCode.TextEditor` within `LiteDB.Studio.Wpf` must return zero results before merge.
+- [X] T143 Add PR checklist item and a CI verification script (or pipeline step) that fails the PR if `ICSharpCode.TextEditor` references remain in `LiteDB.Studio.Wpf` sources (implemented `.github/scripts/verify-no-icsharpcodetexteditor.ps1`).
+- [X] T150 Implement `AvalonEditBehaviors` core in `LiteDB.Studio.Wpf/Controls/AvalonEditBehaviors.cs` (small, testable implementation). Expose these attached properties (two-way where applicable): `EditorText`, `CaretOffset`, `SelectionStart`, `SelectionLength`, `IsModified`, and `ShowCompletionCommand` (ICommand). Preserve caret/selection on programmatic updates, avoid event loops, and reference MVVM samples (https://github.com/Dirkster99/AvalonEdit-Samples) for patterns.
+- [X] T151 Add unit tests `LiteDB.Studio.Wpf.Tests/Controls/AvalonEditBehaviorsTests.cs` to verify two-way `EditorText` binding, `CaretOffset`/selection propagation, `IsModified` toggling, and that `ShowCompletionCommand` is executed when appropriate (e.g., Ctrl+Space). Ensure tests run on STA.  
+
+*Status: Implemented — tests added verifying EditorText two-way, CaretOffset and selection propagation, IsModified toggling, and keybinding/command execution.*
+- [X] T152 Wire ViewModel properties/commands in `TabViewModel`: add `EditorText`, `CaretOffset`, `SelectionStart`, `SelectionLength`, `IsModified`, and `ShowCompletionCommand` and update `RunCommand` to prefer selection execution. Add unit tests for selection-run behavior.  
+
+*Status: Implemented — properties and commands added; `RunCommand` prefers selection and unit tests added for selection-run and completion population.*
+- [X] T153 Update `MainWindow.xaml` and tab templates to bind AvalonEdit via `AvalonEditBehaviors` attached properties (remove direct code-behind wiring and adapters where behavior covers binding). Validate in manual QA and add small integration test that the ViewModel->View bindings work end-to-end.  
+
+*Status: Implemented — `MainWindow.xaml` binds `TextEditor` using `controls:AvalonEditBehaviors` and an integration test `EditorBindingsIntegrationTests` verifies two-way `EditorText` and `ShowCompletionCommand` execution.*
+- [X] T154 Refactor `LiteDB.Studio.Wpf/Util/AvalonEditBehavior.cs` to remove duplicated responsibilities (focus it on lightweight compatibility shims or deprecate in favor of the new `AvalonEditBehaviors`). Consolidate completion triggers so `ShowCompletionCommand` is the single entry point and use `IEditorAdapter` for completion UI.  
+
+*Status: Implemented — legacy helper marked obsolete and refactored into a compatibility shim delegating to `AvalonEditBehaviors`. Completion triggers now prefer the ViewModel-provided `ShowCompletionCommand`; a fallback command is installed only when `EnableCompletion` is used and no VM command exists.*
+- [ ] T155 Add manual QA checklist and integration tests: verify Ctrl+Space completion via ViewModel/service, F5 run-selection semantics, theme switching, font scaling, and large-document performance (document load / typing latency). Include steps and acceptance criteria in `specs/002-wpf-port/tasks.md` and `specs/002-wpf-port/checklists/requirements.md`.
+- [ ] T156 Define completion caching policy & add tests (LiteDB.Studio.Wpf/Services/SqlCompletionProvider.cs and LiteDB.Studio.Wpf.Tests/Performance/CompletionCachingTests.cs): specify TTL, invalidation on schema change, cache size limits, and expected behavior under concurrent updates or stale schema views.
+- [ ] T157 Port and verify Find/Replace functionality to AvalonEdit: implement Find/Replace control and commands (`LiteDB.Studio.Wpf/Controls/FindReplaceControl.xaml`), integrate with `TabViewModel` (commands/properties), and add tests (`LiteDB.Studio.Wpf.Tests/Controls/FindReplaceTests.cs`) covering replace-all, case-sensitivity, whole-word, and regex modes.
+- [ ] T158 Port and test Undo/Redo behavior: ensure editor undo/redo stacks match WinForms behavior, cover grouped edits, selection-based replacements, and programmatic changes that should/shouldn't be undoable; add tests `LiteDB.Studio.Wpf.Tests/Controls/UndoRedoTests.cs`.
+- [ ] T159 Bind App-level theme and font settings to AvalonEdit behaviors and add integration tests (implement in `LiteDB.Studio.Wpf/Settings/AppSettings.cs` and tests in `LiteDB.Studio.Wpf.Tests/Integration/EditorThemeFontTests.cs`): ensure theme switching and font scaling apply immediately to open editors and persist across sessions.
+
 ## Cross-cutting Tasks: Localization, DI, Performance
 
 - [ ] T144 [P] Localization: Extract UI strings to `LiteDB.Studio.Wpf/Resources/Strings.resx` and update Views/XAML to use resource bindings; include culture-neutral keys and comment usage.
