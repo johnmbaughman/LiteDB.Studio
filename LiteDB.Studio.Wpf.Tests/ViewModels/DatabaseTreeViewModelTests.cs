@@ -1,6 +1,7 @@
 using LiteDB.Studio.Wpf.Services;
 using LiteDB.Studio.Wpf.ViewModels;
 using NSubstitute;
+using System.Threading;
 using Xunit;
 using System.Threading.Tasks;
 
@@ -13,8 +14,8 @@ namespace LiteDB.Studio.Wpf.Tests.ViewModels
         {
             // Arrange
             var mockService = Substitute.For<IDatabaseService>();
-            mockService.GetCollectionNamesAsync(default).ReturnsForAnyArgs(["collection1", "collection2"]);
-            mockService.GetSystemCollectionNamesAsync(default).ReturnsForAnyArgs(["system1", "system2"]);
+            mockService.GetCollectionNamesAsync(CancellationToken.None).ReturnsForAnyArgs(["collection1", "collection2"]);
+            mockService.GetSystemCollectionNamesAsync(CancellationToken.None).ReturnsForAnyArgs(["system1", "system2"]);
 
             var viewModel = new DatabaseTreeViewModel(mockService);
 
@@ -62,8 +63,8 @@ namespace LiteDB.Studio.Wpf.Tests.ViewModels
         {
             // Arrange
             var mockService = Substitute.For<IDatabaseService>();
-            mockService.GetCollectionNamesAsync(default).ReturnsForAnyArgs(["collection1", "system1"]);
-            mockService.GetSystemCollectionNamesAsync(default).ReturnsForAnyArgs(["system1", "system2"]);
+            mockService.GetCollectionNamesAsync(CancellationToken.None).ReturnsForAnyArgs(["collection1", "system1"]);
+            mockService.GetSystemCollectionNamesAsync(CancellationToken.None).ReturnsForAnyArgs(["system1", "system2"]);
 
             var viewModel = new DatabaseTreeViewModel(mockService);
 

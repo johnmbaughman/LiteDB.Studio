@@ -3,90 +3,83 @@ using System.Windows.Controls;
 using System.Windows.Media;
 using System.Windows.Media.Imaging;
 
-namespace LiteDB.Studio.Wpf.Util
+namespace LiteDB.Studio.Wpf.Util;
+
+public class GrayableImage : Image
 {
-    public class GrayableImage : Image
+    private ImageSource? _originalSource;
+    private ImageSource? _graySource;
+    private bool _isUpdating;
+
+    public GrayableImage()
     {
-        private ImageSource? _originalSource;
-        private ImageSource? _graySource;
-        private bool _isUpdating;
+        IsEnabledChanged += GrayableImage_IsEnabledChanged;
 
-        public GrayableImage()
+        var desc = System.ComponentModel.DependencyPropertyDescriptor
+            .FromProperty(SourceProperty, typeof(Image));
+
+        desc?.AddValueChanged(this, SourcePropertyChanged);
+    }
+
+    private void SourcePropertyChanged(object? sender, EventArgs e)
+    {
+        if (_isUpdating) return;
+
+        _originalSource = Source;
+        _graySource = CreateGraySource(_originalSource);
+
+        _isUpdating = true;
+        try
         {
-            this.IsEnabledChanged += GrayableImage_IsEnabledChanged;
-
-            var desc = System.ComponentModel.DependencyPropertyDescriptor
-                .FromProperty(Image.SourceProperty, typeof(Image));
-
-            if (desc != null)
+            var newSource = IsEnabled ? _originalSource : _graySource;
+            if (!ReferenceEquals(Source, newSource))
             {
-                desc.AddValueChanged(this, SourcePropertyChanged);
+                Source = newSource;
             }
         }
-
-        private void SourcePropertyChanged(object? sender, System.EventArgs e)
+        finally
         {
-            if (_isUpdating) return;
+            _isUpdating = false;
+        }
+    }
 
-            _originalSource = base.Source;
+    private void GrayableImage_IsEnabledChanged(object sender, DependencyPropertyChangedEventArgs e)
+    {
+        if (_isUpdating) return;
+
+        if (_originalSource == null)
+        {
+            _originalSource = Source;
             _graySource = CreateGraySource(_originalSource);
-
-            _isUpdating = true;
-            try
-            {
-                var newSource = IsEnabled ? _originalSource : _graySource;
-                if (!ReferenceEquals(base.Source, newSource))
-                {
-                    base.Source = newSource;
-                }
-            }
-            finally
-            {
-                _isUpdating = false;
-            }
         }
 
-        private void GrayableImage_IsEnabledChanged(object sender, DependencyPropertyChangedEventArgs e)
+        _isUpdating = true;
+        try
         {
-            if (_isUpdating) return;
-
-            if (_originalSource == null)
+            var newSource = IsEnabled ? _originalSource : _graySource;
+            if (!ReferenceEquals(Source, newSource))
             {
-                _originalSource = base.Source;
-                _graySource = CreateGraySource(_originalSource);
-            }
-
-            _isUpdating = true;
-            try
-            {
-                var newSource = IsEnabled ? _originalSource : _graySource;
-                if (!ReferenceEquals(base.Source, newSource))
-                {
-                    base.Source = newSource;
-                }
-            }
-            finally
-            {
-                _isUpdating = false;
+                Source = newSource;
             }
         }
-
-        private ImageSource CreateGraySource(ImageSource src)
+        finally
         {
-            if (src is BitmapSource bmp)
-            {
-                try
-                {
-                    var conv = new FormatConvertedBitmap(bmp, PixelFormats.Gray8, null, 0);
-                    conv.Freeze();
-                    return conv;
-                }
-                catch
-                {
-                    return src;
-                }
-            }
+            _isUpdating = false;
+        }
+    }
 
+    private static ImageSource CreateGraySource(ImageSource src)
+    {
+        if (src is not BitmapSource bmp) { return src; }
+
+        try
+        {
+            var conv = new FormatConvertedBitmap(bmp, PixelFormats.Gray8, null, 0);
+            conv.Freeze();
+            return conv;
+        }
+        catch
+        {
             return src;
         }
     }

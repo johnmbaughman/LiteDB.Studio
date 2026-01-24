@@ -1,155 +1,160 @@
 using CommunityToolkit.Mvvm.ComponentModel;
-using CommunityToolkit.Mvvm.Input;
 using LiteDB.Studio.Wpf.Services;
+using Serilog;
 using System.Collections.ObjectModel;
 using System.Collections.Specialized;
-using System.Linq;
-using System.Threading;
-using System.Threading.Tasks;
 
-namespace LiteDB.Studio.Wpf.ViewModels
+namespace LiteDB.Studio.Wpf.ViewModels;
+
+public partial class DatabaseTreeViewModel : ObservableObject
 {
-    public partial class DatabaseTreeViewModel : ObservableObject
+    private readonly IDatabaseService _databaseService;
+
+    public event EventHandler<string>? InsertSnippetRequested;
+
+    public DatabaseTreeViewModel(IDatabaseService databaseService)
     {
-        private readonly IDatabaseService _databaseService;
+        _databaseService = databaseService ?? throw new ArgumentNullException(nameof(databaseService));
+        RootNodes = [];
+        RootNodes.CollectionChanged += RootNodes_CollectionChanged;
+    }
 
-        public event EventHandler<string>? InsertSnippetRequested;
+    [ObservableProperty]
+    private ObservableCollection<DbTreeNode> _rootNodes;
 
-        public DatabaseTreeViewModel(IDatabaseService databaseService)
+    [ObservableProperty]
+    private int _collectionsCount;
+
+    [ObservableProperty]
+    private int _systemCount;
+
+    public string StatusText => $"Collections: {CollectionsCount} / System: {SystemCount}";
+
+    private void RootNodes_CollectionChanged(object? sender, NotifyCollectionChangedEventArgs e)
+    {
+        if (e.NewItems != null)
         {
-            _databaseService = databaseService ?? throw new ArgumentNullException(nameof(databaseService));
-            RootNodes = new ObservableCollection<DbTreeNode>();
-            RootNodes.CollectionChanged += RootNodes_CollectionChanged;
-        }
-
-        [ObservableProperty]
-        private ObservableCollection<DbTreeNode> _rootNodes;
-
-        [ObservableProperty]
-        private int _collectionsCount;
-
-        [ObservableProperty]
-        private int _systemCount;
-
-        public string StatusText => $"Collections: {CollectionsCount} / System: {SystemCount}";
-
-        private void RootNodes_CollectionChanged(object? sender, NotifyCollectionChangedEventArgs e)
-        {
-            if (e.NewItems != null)
+            foreach (DbTreeNode node in e.NewItems)
             {
-                foreach (DbTreeNode node in e.NewItems)
-                {
-                    node.Children.CollectionChanged += ChildNodes_CollectionChanged;
-                }
+                node.Children.CollectionChanged += ChildNodes_CollectionChanged;
             }
+        }
 
-            if (e.OldItems != null)
+        if (e.OldItems != null)
+        {
+            foreach (DbTreeNode node in e.OldItems)
             {
-                foreach (DbTreeNode node in e.OldItems)
-                {
-                    node.Children.CollectionChanged -= ChildNodes_CollectionChanged;
-                }
+                node.Children.CollectionChanged -= ChildNodes_CollectionChanged;
             }
-
-            RecalculateCounts();
         }
 
-        private void ChildNodes_CollectionChanged(object? sender, NotifyCollectionChangedEventArgs e)
-        {
-            RecalculateCounts();
-        }
+        RecalculateCounts();
+    }
 
-        private void RecalculateCounts()
+    private void ChildNodes_CollectionChanged(object? sender, NotifyCollectionChangedEventArgs e)
+    {
+        RecalculateCounts();
+    }
+
+    private void RecalculateCounts()
+    {
+        try
         {
-            try
+            var collections = 0;
+            var system = 0;
+
+            foreach (var root in RootNodes)
             {
-                var collections = 0;
-                var system = 0;
-
-                foreach (var root in RootNodes)
+                foreach (var child in root.Children)
                 {
-                    foreach (var child in root.Children)
+                    switch (child.Tag)
                     {
-                        if (child.Tag == "collection") collections++;
-                        else if (child.Tag == "systemfolder")
-                        {
+                        case "collection":
+                            collections++;
+                            break;
+                        case "systemfolder":
                             system += child.Children.Count;
-                        }
+                            break;
                     }
                 }
-
-                CollectionsCount = collections;
-                SystemCount = system;
-                OnPropertyChanged(nameof(StatusText));
             }
-            catch { }
+
+            CollectionsCount = collections;
+            SystemCount = system;
+            OnPropertyChanged(nameof(StatusText));
         }
-        public async Task LoadRootNodesAsync(CancellationToken cancellationToken = default)
+        catch (Exception ex)
         {
-            try
+            Log.Error(ex, "Exception recalculating counts: {Message}", ex.Message);
+        }
+    }
+    public async Task LoadRootNodesAsync(CancellationToken cancellationToken = default)
+    {
+        try
+        {
+            RootNodes.Clear();
+
+            var collectionNames = (await _databaseService.GetCollectionNamesAsync(cancellationToken)).ToList();
+            var systemCollectionNames = (await _databaseService.GetSystemCollectionNamesAsync(cancellationToken)).ToList();
+
+            // Remove any names reported as system collections to avoid duplicates and miscategorization
+            collectionNames = collectionNames.Except(systemCollectionNames).ToList();
+
+            Log.Debug("Loading database tree - collections: {Count}, system: {SystemCount}", collectionNames.Count, systemCollectionNames.Count);
+
+            Action<string> insertSnippet = snippet => InsertSnippetRequested?.Invoke(this, snippet);
+
+            // Create root database node
+            const string databaseName = "Database";
+            var rootNode = new DbTreeNode(_databaseService, insertSnippet)
             {
-                RootNodes.Clear();
+                Header = System.IO.Path.GetFileName(databaseName),
+                Tag = "database",
+                IconUri = "pack://application:,,,/Resources/Icons/database.png"
+            };
 
-                var collectionNames = (await _databaseService.GetCollectionNamesAsync(cancellationToken)).ToList();
-                var systemCollectionNames = (await _databaseService.GetSystemCollectionNamesAsync(cancellationToken)).ToList();
-
-                // Remove any names reported as system collections to avoid duplicates and miscategorization
-                collectionNames = collectionNames.Except(systemCollectionNames).ToList();
-
-                Serilog.Log.Debug("Loading database tree - collections: {Count}, system: {SystemCount}", collectionNames.Count, systemCollectionNames.Count);
-
-                Action<string> insertSnippet = snippet => InsertSnippetRequested?.Invoke(this, snippet);
-
-                // Create root database node
-                var databaseName = "Database";
-                var rootNode = new DbTreeNode(_databaseService, insertSnippet)
-                {
-                    Header = System.IO.Path.GetFileName(databaseName),
-                    Tag = "database",
-                    IconUri = "pack://application:,,,/Resources/Icons/database.png"
-                };
-
-                // Add system collections under root (sorted ascending)
-                var systemNode = new DbTreeNode(_databaseService, insertSnippet)
-                {
-                    Header = "System",
-                    Tag = "systemfolder",
-                    IconUri = "pack://application:,,,/Resources/Icons/system.png" // or a folder icon, but using system.png
-                };
-                foreach (var name in systemCollectionNames.OrderBy(n => n, System.StringComparer.OrdinalIgnoreCase))
-                {
-                    var node = new DbTreeNode(_databaseService, insertSnippet)
-                    {
-                        Header = name,
-                        Tag = "system",
-                        IconUri = "pack://application:,,,/Resources/Icons/system.png"
-                    };
-                    systemNode.Children.Add(node);
-                }
-                rootNode.Children.Add(systemNode);
-
-                // Add user collections directly under root (sorted ascending)
-                foreach (var name in collectionNames.OrderBy(n => n, System.StringComparer.OrdinalIgnoreCase))
-                {
-                    var node = new DbTreeNode(_databaseService, insertSnippet)
-                    {
-                        Header = name,
-                        Tag = "collection",
-                        IconUri = "pack://application:,,,/Resources/Icons/collection.png"
-                    };
-                    rootNode.Children.Add(node);
-                }
-
-                RootNodes.Add(rootNode);
-
-                // Ensure counts reflect newly loaded nodes
-                RecalculateCounts();
-            }
-            catch (Exception ex)
+            // Add system collections under root (sorted ascending)
+            var systemNode = new DbTreeNode(_databaseService, insertSnippet)
             {
-                Serilog.Log.Error(ex, "Failed to load root nodes");
-                throw;
+                Header = "System",
+                Tag = "systemfolder",
+                IconUri = "pack://application:,,,/Resources/Icons/system.png" // or a folder icon, but using system.png
+            };
+
+            foreach (var name in systemCollectionNames.OrderBy(n => n, StringComparer.OrdinalIgnoreCase))
+            {
+                var node = new DbTreeNode(_databaseService, insertSnippet)
+                {
+                    Header = name,
+                    Tag = "system",
+                    IconUri = "pack://application:,,,/Resources/Icons/system.png"
+                };
+                systemNode.Children.Add(node);
             }
+
+            rootNode.Children.Add(systemNode);
+
+            // Add user collections directly under root (sorted ascending)
+            foreach (var name in collectionNames.OrderBy(n => n, StringComparer.OrdinalIgnoreCase))
+            {
+                var node = new DbTreeNode(_databaseService, insertSnippet)
+                {
+                    Header = name,
+                    Tag = "collection",
+                    IconUri = "pack://application:,,,/Resources/Icons/collection.png"
+                };
+                rootNode.Children.Add(node);
+            }
+
+            RootNodes.Add(rootNode);
+
+            // Ensure counts reflect newly loaded nodes
+            RecalculateCounts();
+        }
+        catch (Exception ex)
+        {
+            Log.Error(ex, "Failed to load root nodes");
+            throw;
         }
     }
 }

@@ -1,11 +1,9 @@
 using System;
 using System.Threading;
-using System.Threading.Tasks;
 using Xunit;
 using ICSharpCode.AvalonEdit;
 using LiteDB.Studio.Wpf.Controls;
 using System.Windows.Threading;
-using System.Windows.Input;
 using System.Linq;
 
 namespace LiteDB.Studio.Wpf.Tests.Controls
@@ -116,14 +114,14 @@ namespace LiteDB.Studio.Wpf.Tests.Controls
             RunInSta(() =>
             {
                 var editor = new TextEditor();
-                bool executed = false;
+                var executed = false;
                 var cmd = new TestCommand(() => executed = true);
 
                 AvalonEditBehaviors.SetShowCompletionCommand(editor, cmd);
                 Dispatcher.CurrentDispatcher.Invoke(DispatcherPriority.Background, new Action(() => { }));
 
                 // Ensure a KeyBinding for Ctrl+Space exists
-                var kb = System.Linq.Enumerable.OfType<System.Windows.Input.KeyBinding>(editor.InputBindings).FirstOrDefault(k => k.Key == System.Windows.Input.Key.Space && k.Modifiers == System.Windows.Input.ModifierKeys.Control);
+                var kb = editor.InputBindings.OfType<System.Windows.Input.KeyBinding>().FirstOrDefault(k => k is { Key: System.Windows.Input.Key.Space, Modifiers: System.Windows.Input.ModifierKeys.Control });
                 Assert.NotNull(kb);
 
                 // Execute the bound command to simulate the input trigger
@@ -132,13 +130,11 @@ namespace LiteDB.Studio.Wpf.Tests.Controls
             });
         }
 
-        private class TestCommand : System.Windows.Input.ICommand
+        private class TestCommand(Action action) : System.Windows.Input.ICommand
         {
-            private readonly Action _action;
-            public TestCommand(Action action) => _action = action;
             public event EventHandler? CanExecuteChanged;
             public bool CanExecute(object? parameter) => true;
-            public void Execute(object? parameter) => _action();
+            public void Execute(object? parameter) => action();
         }
     }
 }

@@ -1,6 +1,5 @@
 using System.Threading;
 using System.Threading.Tasks;
-using LiteDB;
 using NSubstitute;
 using Xunit;
 
@@ -13,8 +12,10 @@ namespace LiteDB.Studio.Wpf.Tests.ViewModels
         {
             // Arrange
             var mockDatabaseService = Substitute.For<LiteDB.Studio.Wpf.Services.IDatabaseService>();
-            var viewModel = new LiteDB.Studio.Wpf.ViewModels.ResultGridViewModel(mockDatabaseService);
-            viewModel.CollectionName = "test_collection";
+            var viewModel = new LiteDB.Studio.Wpf.ViewModels.ResultGridViewModel(mockDatabaseService)
+            {
+                CollectionName = "test_collection"
+            };
 
             var document = new BsonDocument
             {

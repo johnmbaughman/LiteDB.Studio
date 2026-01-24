@@ -2,7 +2,6 @@ using System.IO;
 using System.Threading.Tasks;
 using Xunit;
 using LiteDB.Studio.Wpf.Services;
-using System.Linq;
 
 namespace LiteDB.Studio.Wpf.Tests.Services
 {

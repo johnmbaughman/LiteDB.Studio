@@ -4,6 +4,7 @@ using System.Threading.Tasks;
 using NSubstitute;
 using Xunit;
 using LiteDB.Studio.Wpf.Services;
+using System.Collections.Generic;
 
 namespace LiteDB.Studio.Wpf.Tests.Services
 {
@@ -14,9 +15,9 @@ namespace LiteDB.Studio.Wpf.Tests.Services
         {
             var db = Substitute.For<IDatabaseService>();
             db.GetCollectionNamesAsync(Arg.Any<CancellationToken>())
-                .Returns(Task.FromResult((System.Collections.Generic.IEnumerable<string>)new[] { "users", "orders" }));
+                .Returns(Task.FromResult<IEnumerable<string>>(["users", "orders"]));
 
-            var kws = await SqlCompletionProvider.GetKeywordCompletionsFromFileAsync(null);
+            var kws = await SqlCompletionProvider.GetKeywordCompletionsFromFileAsync();
             var cols = await SqlCompletionProvider.GetCollectionCompletionsAsync(db);
 
             var combined = kws.Select(k => k.Text).Concat(cols.Select(c => c.Text)).ToArray();

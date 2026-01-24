@@ -1,14 +1,6 @@
-using System;
+namespace LiteDB.Studio.Wpf.Services;
 
-namespace LiteDB.Studio.Wpf.Services
+public class ConnectionStateChangedEventArgs(bool isConnected) : EventArgs
 {
-    public class ConnectionStateChangedEventArgs : EventArgs
-    {
-        public bool IsConnected { get; }
-
-        public ConnectionStateChangedEventArgs(bool isConnected)
-        {
-            IsConnected = isConnected;
-        }
-    }
+    public bool IsConnected { get; } = isConnected;
 }

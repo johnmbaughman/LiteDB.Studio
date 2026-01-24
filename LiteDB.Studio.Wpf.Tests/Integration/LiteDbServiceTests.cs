@@ -1,5 +1,4 @@
 using System;
-using System.IO;
 using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
@@ -11,12 +10,7 @@ namespace LiteDB.Studio.Wpf.Tests.Integration
 {
     public class LiteDbServiceTests : IDisposable
     {
-        private readonly LiteDbService _service;
-
-        public LiteDbServiceTests()
-        {
-            _service = new LiteDbService();
-        }
+        private readonly LiteDbService _service = new();
 
         public void Dispose()
         {
@@ -61,7 +55,7 @@ namespace LiteDB.Studio.Wpf.Tests.Integration
             await _service.ConnectAsync(":memory:", cts.Token);
 
             // Insert some test data
-            var insertQuery = "INSERT INTO test_collection VALUES { name: 'test1', value: 42 }";
+            const string insertQuery = "INSERT INTO test_collection VALUES { name: 'test1', value: 42 }";
             await _service.ExecuteAsync(insertQuery, cts.Token);
 
             // Act
@@ -82,7 +76,7 @@ namespace LiteDB.Studio.Wpf.Tests.Integration
             await _service.ConnectAsync(":memory:", cts.Token);
 
             // Insert a test document
-            var insertQuery = "INSERT INTO test_collection VALUES { name: 'test1', value: 42 }";
+            const string insertQuery = "INSERT INTO test_collection VALUES { name: 'test1', value: 42 }";
             await _service.ExecuteAsync(insertQuery, cts.Token);
 
             // Get the document ID (assuming it's auto-generated, we need to query it)
@@ -109,7 +103,7 @@ namespace LiteDB.Studio.Wpf.Tests.Integration
             await _service.ConnectAsync(":memory:", cts.Token);
 
             // Create a test collection
-            var insertQuery = "INSERT INTO test_drop_collection VALUES { name: 'test' }";
+            const string insertQuery = "INSERT INTO test_drop_collection VALUES { name: 'test' }";
             await _service.ExecuteAsync(insertQuery, cts.Token);
 
             // Verify collection exists

@@ -1,13 +1,11 @@
-using LiteDB.Studio.Wpf.ViewModels;
 using System.Windows;
 
-namespace LiteDB.Studio.Wpf.Views
+namespace LiteDB.Studio.Wpf.Views;
+
+public partial class ConnectionManagerWindow : Window
 {
-    public partial class ConnectionManagerWindow : Window
+    public ConnectionManagerWindow()
     {
-        public ConnectionManagerWindow()
-        {
-            InitializeComponent();
-        }
+        InitializeComponent();
     }
 }

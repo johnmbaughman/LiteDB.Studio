@@ -1,19 +1,19 @@
-using System;
 using System.Globalization;
 using System.Windows.Data;
-using LiteDB;
-using System.Text.Json;
 
-namespace LiteDB.Studio.Wpf.Util
+namespace LiteDB.Studio.Wpf.Util;
+
+public class BsonValueToStringConverter : IValueConverter
 {
-    public class BsonValueToStringConverter : IValueConverter
+    public object Convert(object value, Type targetType, object parameter, CultureInfo culture)
     {
-        public object Convert(object value, Type targetType, object parameter, CultureInfo culture)
-        {
-            if (value == null) return string.Empty;
+        var isFull = parameter?.ToString() == "full";
 
-            if (value is BsonValue bson)
-            {
+        switch (value)
+        {
+            case null:
+                return string.Empty;
+            case BsonValue bson:
                 switch (bson.Type)
                 {
                     case BsonType.MinValue:
@@ -23,7 +23,7 @@ namespace LiteDB.Studio.Wpf.Util
                     case BsonType.Boolean:
                         return bson.AsBoolean.ToString().ToLower();
                     case BsonType.DateTime:
-                        return bson.AsDateTime.ToString();
+                        return bson.AsDateTime.ToString(CultureInfo.CurrentCulture);
                     case BsonType.Null:
                         return "(null)";
                     case BsonType.Binary:
@@ -34,9 +34,17 @@ namespace LiteDB.Studio.Wpf.Util
                     case BsonType.Decimal:
                         return bson.RawValue?.ToString() ?? string.Empty;
                     case BsonType.String:
+                        var str = bson.AsString;
+                        if (!isFull && str.Length > 100)
+                        {
+                            return str[..97] + "...";
+                        }
+                        return str;
                     case BsonType.ObjectId:
                     case BsonType.Guid:
                         return bson.ToString();
+                    case BsonType.Document:
+                    case BsonType.Array:
                     default:
                         try
                         {
@@ -47,14 +55,14 @@ namespace LiteDB.Studio.Wpf.Util
                             return bson.ToString();
                         }
                 }
-            }
 
-            return value?.ToString() ?? string.Empty;
+            default:
+                return value?.ToString() ?? string.Empty;
         }
+    }
 
-        public object ConvertBack(object value, Type targetType, object parameter, CultureInfo culture)
-        {
-            return Binding.DoNothing;
-        }
+    public object ConvertBack(object value, Type targetType, object parameter, CultureInfo culture)
+    {
+        return Binding.DoNothing;
     }
 }

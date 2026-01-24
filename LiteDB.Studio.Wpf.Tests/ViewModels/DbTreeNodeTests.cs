@@ -2,6 +2,7 @@ using LiteDB.Studio.Wpf.Services;
 using LiteDB.Studio.Wpf.ViewModels;
 using NSubstitute;
 using System.Collections.Generic;
+using System.Threading;
 using Xunit;
 using System.Threading.Tasks;
 
@@ -19,7 +20,7 @@ namespace LiteDB.Studio.Wpf.Tests.ViewModels
                 new() { Name = "field1" },
                 new() { Name = "field2" }
             };
-            mockService.GetCollectionSchemaAsync("testCollection", default).ReturnsForAnyArgs(schema);
+            mockService.GetCollectionSchemaAsync("testCollection", CancellationToken.None).ReturnsForAnyArgs(schema);
 
             var node = new DbTreeNode(mockService)
             {

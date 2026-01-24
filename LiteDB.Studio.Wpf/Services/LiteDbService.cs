@@ -1,316 +1,308 @@
-using System;
-using System.Collections.Generic;
-using System.Threading;
-using System.Threading.Tasks;
-using LiteDB;
 using System.Diagnostics;
-using System.Data;
 using Serilog;
 
-namespace LiteDB.Studio.Wpf.Services
+namespace LiteDB.Studio.Wpf.Services;
+
+public class LiteDbService : IDatabaseService
 {
-    public class LiteDbService : IDatabaseService
+    private LiteDatabase? _db;
+    private readonly Lock _sync = new();
+
+    public bool IsConnected => _db != null;
+
+    public bool TransactionActive { get; private set; }
+
+    public event EventHandler<ConnectionStateChangedEventArgs>? ConnectionStateChanged;
+    public event EventHandler<TransactionStateChangedEventArgs>? TransactionStateChanged;
+
+    public void Dispose()
     {
-        private LiteDatabase? _db;
-        private readonly object _sync = new object();
+        DisconnectAsync().GetAwaiter().GetResult();
+    }
 
-        public bool IsConnected => _db != null;
+    public object? Database => _db;
 
-        public bool TransactionActive { get; private set; }
+    public void Disconnect()
+    {
+        DisconnectAsync().GetAwaiter().GetResult();
+    }
 
-        public event EventHandler<ConnectionStateChangedEventArgs>? ConnectionStateChanged;
-        public event EventHandler<TransactionStateChangedEventArgs>? TransactionStateChanged;
+    public Task ConnectAsync(string connectionString, CancellationToken cancellationToken)
+    {
+        if (IsConnected) throw new InvalidOperationException("Already connected");
 
-        public void Dispose()
+        try
         {
-            DisconnectAsync().GetAwaiter().GetResult();
-        }
+            // Lightweight connect: accept a file path or a LiteDB connection string
+            _db = new LiteDatabase(connectionString);
 
-        public object? Database => _db;
-
-        public void Disconnect()
-        {
-            DisconnectAsync().GetAwaiter().GetResult();
-        }
-
-        public Task ConnectAsync(string connectionString, CancellationToken cancellationToken)
-        {
-            if (IsConnected) throw new InvalidOperationException("Already connected");
-
+            // Log discovered collections immediately for diagnostics
             try
             {
-                // Lightweight connect: accept a file path or a LiteDB connection string
-                _db = new LiteDatabase(connectionString);
-
-                // Log discovered collections immediately for diagnostics
-                try
-                {
-                    var names = _db.GetCollectionNames().ToArray();
-                    Log.Information("Connected to LiteDB. Connection string: {Conn}. Collections found: {Count}", connectionString, names.Length);
-                }
-                catch (Exception ex)
-                {
-                    Log.Warning(ex, "Connected to LiteDB but failed to enumerate collections");
-                }
-
-                ConnectionStateChanged?.Invoke(this, new ConnectionStateChangedEventArgs(true));
+                var names = _db.GetCollectionNames().ToArray();
+                Log.Information("Connected to LiteDB. Connection string: {Conn}. Collections found: {Count}", connectionString, names.Length);
             }
             catch (Exception ex)
             {
-                Log.Error(ex, "Failed to connect to database with connection string {Conn}", connectionString);
-                throw;
+                Log.Warning(ex, "Connected to LiteDB but failed to enumerate collections");
             }
 
-            return Task.CompletedTask;
+            ConnectionStateChanged?.Invoke(this, new ConnectionStateChangedEventArgs(true));
+        }
+        catch (Exception ex)
+        {
+            Log.Error(ex, "Failed to connect to database with connection string {Conn}", connectionString);
+            throw;
         }
 
-        public Task DisconnectAsync()
+        return Task.CompletedTask;
+    }
+
+    public Task DisconnectAsync()
+    {
+        if (!IsConnected) return Task.CompletedTask;
+
+        if (TransactionActive)
         {
-            if (!IsConnected) return Task.CompletedTask;
-
-            if (TransactionActive)
-            {
-                throw new InvalidOperationException("Transaction in progress (must commit or rollback before disconnecting).");
-            }
-
-            lock (_sync)
-            {
-                try
-                {
-                    _db?.Dispose();
-                }
-                finally
-                {
-                    _db = null;
-                    ConnectionStateChanged?.Invoke(this, new ConnectionStateChangedEventArgs(false));
-                }
-            }
-
-            return Task.CompletedTask;
+            throw new InvalidOperationException("Transaction in progress (must commit or rollback before disconnecting).");
         }
 
-        public async Task<QueryResult> ExecuteAsync(string query, CancellationToken cancellationToken)
+        lock (_sync)
         {
-            if (!IsConnected) throw new InvalidOperationException("Not connected");
-
-            var stopwatch = Stopwatch.StartNew();
-
             try
             {
-                using var reader = _db!.Execute(query);
-                var columns = new List<ColumnInfo>();
-                var rows = new List<object>();
-                var rowCount = 0;
-                const int maxRows = 1000;
-                var limitExceeded = false;
+                _db?.Dispose();
+            }
+            finally
+            {
+                _db = null;
+                ConnectionStateChanged?.Invoke(this, new ConnectionStateChangedEventArgs(false));
+            }
+        }
 
-                // Read first row to infer columns
-                if (reader.Read())
+        return Task.CompletedTask;
+    }
+
+    public Task<QueryResult> ExecuteAsync(string? query, CancellationToken cancellationToken)
+    {
+        if (!IsConnected) throw new InvalidOperationException("Not connected");
+
+        var stopwatch = Stopwatch.StartNew();
+
+        try
+        {
+            using var reader = _db!.Execute(query);
+            var columns = new List<ColumnInfo>();
+            var rows = new List<object>();
+            var rowCount = 0;
+            const int maxRows = 1000;
+            var limitExceeded = false;
+
+            // Read first row to infer columns
+            if (reader.Read())
+            {
+                var firstDoc = reader.Current as BsonDocument;
+                if (firstDoc != null)
                 {
-                    var firstDoc = reader.Current as BsonDocument;
-                    if (firstDoc != null)
-                    {
-                        foreach (var key in firstDoc.Keys)
+                    columns.AddRange(
+                        firstDoc.Keys.Select(key => new ColumnInfo
                         {
-                            columns.Add(new ColumnInfo
-                            {
-                                Name = key,
-                                BsonType = firstDoc[key]?.Type.ToString() ?? "Null",
-                                DisplayFormat = null
-                            });
-                        }
-                        rows.Add(firstDoc);
-                        rowCount++;
-                    }
-                }
-
-                // Read remaining rows up to limit
-                while (reader.Read() && rowCount < maxRows)
-                {
-                    var doc = reader.Current as BsonDocument;
-                    if (doc != null)
-                    {
-                        rows.Add(doc);
-                        rowCount++;
-                    }
-                    cancellationToken.ThrowIfCancellationRequested();
-                }
-
-                if (reader.Read())
-                {
-                    limitExceeded = true;
-                }
-
-                stopwatch.Stop();
-
-                return new QueryResult
-                {
-                    Rows = rows,
-                    Columns = columns,
-                    LimitExceeded = limitExceeded,
-                    RowCount = rowCount,
-                    ExecutionTime = stopwatch.Elapsed,
-                    Warnings = Array.Empty<string>(),
-                    Metadata = new Dictionary<string, object?>()
-                };
-            }
-            catch (Exception ex)
-            {
-                stopwatch.Stop();
-                throw new InvalidOperationException($"Query execution failed: {ex.Message}", ex);
-            }
-        }
-
-        public Task<IEnumerable<string>> GetCollectionNamesAsync(CancellationToken cancellationToken)
-        {
-            if (!IsConnected) throw new InvalidOperationException("Not connected");
-
-            var names = _db!.GetCollectionNames().ToArray();
-            Log.Information("GetCollectionNamesAsync returning {Count} collections", names.Length);
-            return Task.FromResult((IEnumerable<string>)names);
-        }
-
-        public Task<IEnumerable<string>> GetSystemCollectionNamesAsync(CancellationToken cancellationToken)
-        {
-            if (!IsConnected) throw new InvalidOperationException("Not connected");
-
-            try
-            {
-                // Try reading $cols system collection which records system collections with type='system'
-                var sysCol = _db!.GetCollection("$cols");
-                if (sysCol != null)
-                {
-                    try
-                    {
-                        var docs = sysCol.Query().Where("type = 'system'").OrderBy("name").ToDocuments();
-                        var names = docs.Select(d => d["name"].AsString).ToArray();
-                        if (names.Length > 0)
-                        {
-                            Log.Debug("GetSystemCollectionNamesAsync returning {Count} system collections from $cols: {Names}", names.Length, string.Join(", ", names));
-                            return Task.FromResult((IEnumerable<string>)names);
-                        }
-                    }
-                    catch (Exception ex)
-                    {
-                        Log.Debug(ex, "Failed to read $cols for system collections, falling back to collection name prefix detection");
-                    }
+                            Name = key,
+                            BsonType = firstDoc[key]?.Type.ToString() ?? "Null",
+                            DisplayFormat = null
+                        }));
+                    rows.Add(firstDoc);
+                    rowCount++;
                 }
             }
-            catch (Exception ex)
+
+            // Read remaining rows up to limit
+            while (reader.Read() && rowCount < maxRows)
             {
-                Log.Debug(ex, "Error while trying to determine system collection names from $cols");
-            }
-
-            // Fallback: Return system collections (those starting with "$" or "_"). Some system collections in LiteDB start with '$' (e.g. $cols, $indexes)
-            var namesFallback = _db!.GetCollectionNames().Where(name => name.StartsWith("$") || name.StartsWith("_")).ToArray();
-            Log.Debug("GetSystemCollectionNamesAsync returning {Count} system collections (fallback): {Names}", namesFallback.Length, string.Join(", ", namesFallback));
-            return Task.FromResult((IEnumerable<string>)namesFallback);
-        }
-
-        public async Task<IEnumerable<ColumnInfo>> GetCollectionSchemaAsync(string collectionName, CancellationToken cancellationToken)
-        {
-            if (!IsConnected) throw new InvalidOperationException("Not connected");
-
-            var collection = _db!.GetCollection(collectionName);
-            var schema = new Dictionary<string, string>();
-
-            // Sample first 100 documents to infer schema
-            var documents = collection.Find(Query.All(), 0, 100);
-            foreach (var doc in documents)
-            {
-                foreach (var key in doc.Keys)
+                var doc = reader.Current as BsonDocument;
+                if (doc != null)
                 {
-                    if (!schema.ContainsKey(key))
-                    {
-                        var value = doc[key];
-                        schema[key] = value?.Type.ToString() ?? "Null";
-                    }
+                    rows.Add(doc);
+                    rowCount++;
                 }
                 cancellationToken.ThrowIfCancellationRequested();
             }
 
-            var columns = schema.Select(kvp => new ColumnInfo
+            if (reader.Read())
             {
-                Name = kvp.Key,
-                BsonType = kvp.Value,
-                DisplayFormat = null
-            }).OrderBy(c => c.Name);
-
-            return columns;
-        }
-
-        public async Task UpdateDocumentFieldAsync(string collectionName, object documentId, string fieldPath, object? newValue, CancellationToken cancellationToken)
-        {
-            if (!IsConnected) throw new InvalidOperationException("Not connected");
-
-            var collection = _db!.GetCollection(collectionName);
-            var id = new BsonValue(documentId);
-
-            // Find the document
-            var doc = collection.FindById(id);
-            if (doc == null)
-            {
-                throw new InvalidOperationException($"Document with id {documentId} not found in collection {collectionName}");
+                limitExceeded = true;
             }
 
-            // Convert newValue to BsonValue
-            var bsonValue = newValue != null ? new BsonValue(newValue) : BsonValue.Null;
+            stopwatch.Stop();
 
-            // For now, assume top-level field (fieldPath without dots)
-            if (fieldPath.Contains('.'))
+            return Task.FromResult(new QueryResult
             {
-                throw new NotImplementedException("Nested field paths are not yet supported");
-            }
+                Rows = rows,
+                Columns = columns,
+                LimitExceeded = limitExceeded,
+                RowCount = rowCount,
+                ExecutionTime = stopwatch.Elapsed,
+                Warnings = [],
+                Metadata = new Dictionary<string, object?>()
+            });
+        }
+        catch (Exception ex)
+        {
+            stopwatch.Stop();
+            throw new InvalidOperationException($"Query execution failed: {ex.Message}", ex);
+        }
+    }
 
-            doc[fieldPath] = bsonValue;
+    public Task<IEnumerable<string>> GetCollectionNamesAsync(CancellationToken cancellationToken)
+    {
+        if (!IsConnected) throw new InvalidOperationException("Not connected");
 
-            // Update the document
-            var updated = collection.Update(doc);
-            if (!updated)
+        var names = _db!.GetCollectionNames().ToArray();
+        Log.Information("GetCollectionNamesAsync returning {Count} collections", names.Length);
+        return Task.FromResult<IEnumerable<string>>(names);
+    }
+
+    public Task<IEnumerable<string>> GetSystemCollectionNamesAsync(CancellationToken cancellationToken)
+    {
+        if (!IsConnected) throw new InvalidOperationException("Not connected");
+
+        try
+        {
+            // Try reading $cols system collection which records system collections with type='system'
+            var sysCol = _db!.GetCollection("$cols");
+            if (sysCol != null)
             {
-                throw new InvalidOperationException("Failed to update document");
+                try
+                {
+                    var docs = sysCol.Query().Where("type = 'system'").OrderBy("name").ToDocuments();
+                    var names = docs.Select(d => d["name"].AsString).ToArray();
+                    if (names.Length > 0)
+                    {
+                        Log.Debug("GetSystemCollectionNamesAsync returning {Count} system collections from $cols: {Names}", names.Length, string.Join(", ", names));
+                        return Task.FromResult<IEnumerable<string>>(names);
+                    }
+                }
+                catch (Exception ex)
+                {
+                    Log.Debug(ex, "Failed to read $cols for system collections, falling back to collection name prefix detection");
+                }
             }
         }
-
-        public Task BeginTransactionAsync(CancellationToken cancellationToken)
+        catch (Exception ex)
         {
-            if (!IsConnected) throw new InvalidOperationException("Not connected");
-            if (TransactionActive) throw new InvalidOperationException("Transaction already active");
-
-            _db!.BeginTrans();
-            TransactionActive = true;
-            TransactionStateChanged?.Invoke(this, new TransactionStateChangedEventArgs(true));
-            return Task.CompletedTask;
+            Log.Debug(ex, "Error while trying to determine system collection names from $cols");
         }
 
-        public Task CommitTransactionAsync(CancellationToken cancellationToken)
-        {
-            if (!IsConnected) throw new InvalidOperationException("Not connected");
-            if (!TransactionActive) throw new InvalidOperationException("No active transaction");
+        // Fallback: Return system collections (those starting with "$" or "_"). Some system collections in LiteDB start with '$' (e.g. $cols, $indexes)
+        var namesFallback = _db!.GetCollectionNames().Where(name => name.StartsWith("$") || name.StartsWith("_")).ToArray();
+        Log.Debug("GetSystemCollectionNamesAsync returning {Count} system collections (fallback): {Names}", namesFallback.Length, string.Join(", ", namesFallback));
+        return Task.FromResult<IEnumerable<string>>(namesFallback);
+    }
 
-            _db!.Commit();
-            TransactionActive = false;
-            TransactionStateChanged?.Invoke(this, new TransactionStateChangedEventArgs(false));
-            return Task.CompletedTask;
+    public Task<IEnumerable<ColumnInfo>> GetCollectionSchemaAsync(string collectionName, CancellationToken cancellationToken)
+    {
+        if (!IsConnected) throw new InvalidOperationException("Not connected");
+
+        var collection = _db!.GetCollection(collectionName);
+        var schema = new Dictionary<string, string>();
+
+        // Sample first 100 documents to infer schema
+        var documents = collection.Find(Query.All(), 0, 100);
+        foreach (var doc in documents)
+        {
+            foreach (var key in doc.Keys)
+            {
+                if (schema.ContainsKey(key)) { continue; }
+
+                var value = doc[key];
+                schema[key] = value?.Type.ToString() ?? "Null";
+            }
+            cancellationToken.ThrowIfCancellationRequested();
         }
 
-        public Task RollbackTransactionAsync(CancellationToken cancellationToken)
+        var columns = schema.Select(kvp => new ColumnInfo
         {
-            if (!IsConnected) throw new InvalidOperationException("Not connected");
-            if (!TransactionActive) throw new InvalidOperationException("No active transaction");
+            Name = kvp.Key,
+            BsonType = kvp.Value,
+            DisplayFormat = null
+        }).OrderBy(c => c.Name);
 
-            _db!.Rollback();
-            TransactionActive = false;
-            TransactionStateChanged?.Invoke(this, new TransactionStateChangedEventArgs(false));
-            return Task.CompletedTask;
+        return Task.FromResult<IEnumerable<ColumnInfo>>(columns);
+    }
+
+    public Task UpdateDocumentFieldAsync(string collectionName, object documentId, string fieldPath, object? newValue, CancellationToken cancellationToken)
+    {
+        if (!IsConnected) throw new InvalidOperationException("Not connected");
+
+        var collection = _db!.GetCollection(collectionName);
+        var id = new BsonValue(documentId);
+
+        // Find the document
+        var doc = collection.FindById(id);
+        if (doc == null)
+        {
+            throw new InvalidOperationException($"Document with id {documentId} not found in collection {collectionName}");
         }
 
-        public Task CheckpointAsync(CancellationToken cancellationToken)
-        {
-            if (!IsConnected) throw new InvalidOperationException("Not connected");
+        // Convert newValue to BsonValue
+        var bsonValue = newValue != null ? new BsonValue(newValue) : BsonValue.Null;
 
-            _db!.Checkpoint();
-            return Task.CompletedTask;
+        // For now, assume top-level field (fieldPath without dots)
+        if (fieldPath.Contains('.'))
+        {
+            throw new NotImplementedException("Nested field paths are not yet supported");
         }
+
+        doc[fieldPath] = bsonValue;
+
+        // Update the document
+        var updated = collection.Update(doc);
+        if (!updated)
+        {
+            throw new InvalidOperationException("Failed to update document");
+        }
+
+        return Task.CompletedTask;
+    }
+
+    public Task BeginTransactionAsync(CancellationToken cancellationToken)
+    {
+        if (!IsConnected) throw new InvalidOperationException("Not connected");
+        if (TransactionActive) throw new InvalidOperationException("Transaction already active");
+
+        _db!.BeginTrans();
+        TransactionActive = true;
+        TransactionStateChanged?.Invoke(this, new TransactionStateChangedEventArgs(true));
+        return Task.CompletedTask;
+    }
+
+    public Task CommitTransactionAsync(CancellationToken cancellationToken)
+    {
+        if (!IsConnected) throw new InvalidOperationException("Not connected");
+        if (!TransactionActive) throw new InvalidOperationException("No active transaction");
+
+        _db!.Commit();
+        TransactionActive = false;
+        TransactionStateChanged?.Invoke(this, new TransactionStateChangedEventArgs(false));
+        return Task.CompletedTask;
+    }
+
+    public Task RollbackTransactionAsync(CancellationToken cancellationToken)
+    {
+        if (!IsConnected) throw new InvalidOperationException("Not connected");
+        if (!TransactionActive) throw new InvalidOperationException("No active transaction");
+
+        _db!.Rollback();
+        TransactionActive = false;
+        TransactionStateChanged?.Invoke(this, new TransactionStateChangedEventArgs(false));
+        return Task.CompletedTask;
+    }
+
+    public Task CheckpointAsync(CancellationToken cancellationToken)
+    {
+        if (!IsConnected) throw new InvalidOperationException("Not connected");
+
+        _db!.Checkpoint();
+        return Task.CompletedTask;
     }
 }

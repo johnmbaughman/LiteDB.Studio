@@ -2,20 +2,14 @@ using System;
 using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
-using LiteDB;
 using LiteDB.Studio.Wpf.Services;
 using Xunit;
 
 namespace LiteDB.Studio.Wpf.Tests.Integration
 {
-    public class LiteDbService_SystemCollections_Tests : IDisposable
+    public class LiteDbServiceSystemCollectionsTests : IDisposable
     {
-        private readonly LiteDbService _service;
-
-        public LiteDbService_SystemCollections_Tests()
-        {
-            _service = new LiteDbService();
-        }
+        private readonly LiteDbService _service = new();
 
         public void Dispose()
         {

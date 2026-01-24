@@ -1,44 +1,38 @@
-using System;
-using System.Collections.Generic;
-using System.Threading;
-using System.Threading.Tasks;
+namespace LiteDB.Studio.Wpf.Services;
 
-namespace LiteDB.Studio.Wpf.Services
+public interface IDatabaseService : IDisposable
 {
-    public interface IDatabaseService : IDisposable
-    {
-        bool IsConnected { get; }
+    bool IsConnected { get; }
 
-        object? Database { get; }
+    object? Database { get; }
 
-        bool TransactionActive { get; }
+    bool TransactionActive { get; }
 
-        Task ConnectAsync(string connectionString, CancellationToken cancellationToken);
+    Task ConnectAsync(string connectionString, CancellationToken cancellationToken);
 
-        Task DisconnectAsync();
+    Task DisconnectAsync();
 
-        void Disconnect();
+    void Disconnect();
 
-        Task<QueryResult> ExecuteAsync(string query, CancellationToken cancellationToken);
+    Task<QueryResult> ExecuteAsync(string? query, CancellationToken cancellationToken);
 
-        Task<IEnumerable<string>> GetCollectionNamesAsync(CancellationToken cancellationToken);
+    Task<IEnumerable<string>> GetCollectionNamesAsync(CancellationToken cancellationToken);
 
-        Task<IEnumerable<string>> GetSystemCollectionNamesAsync(CancellationToken cancellationToken);
+    Task<IEnumerable<string>> GetSystemCollectionNamesAsync(CancellationToken cancellationToken);
 
-        Task<IEnumerable<ColumnInfo>> GetCollectionSchemaAsync(string collectionName, CancellationToken cancellationToken);
+    Task<IEnumerable<ColumnInfo>> GetCollectionSchemaAsync(string collectionName, CancellationToken cancellationToken);
 
-        Task UpdateDocumentFieldAsync(string collectionName, object documentId, string fieldPath, object? newValue, CancellationToken cancellationToken);
+    Task UpdateDocumentFieldAsync(string collectionName, object documentId, string fieldPath, object? newValue, CancellationToken cancellationToken);
 
-        Task BeginTransactionAsync(CancellationToken cancellationToken);
+    Task BeginTransactionAsync(CancellationToken cancellationToken);
 
-        Task CommitTransactionAsync(CancellationToken cancellationToken);
+    Task CommitTransactionAsync(CancellationToken cancellationToken);
 
-        Task RollbackTransactionAsync(CancellationToken cancellationToken);
+    Task RollbackTransactionAsync(CancellationToken cancellationToken);
 
-        Task CheckpointAsync(CancellationToken cancellationToken);
+    Task CheckpointAsync(CancellationToken cancellationToken);
 
-        event EventHandler<ConnectionStateChangedEventArgs>? ConnectionStateChanged;
+    event EventHandler<ConnectionStateChangedEventArgs>? ConnectionStateChanged;
 
-        event EventHandler<TransactionStateChangedEventArgs>? TransactionStateChanged;
-    }
+    event EventHandler<TransactionStateChangedEventArgs>? TransactionStateChanged;
 }

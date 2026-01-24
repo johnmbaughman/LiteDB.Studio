@@ -1,14 +1,6 @@
-using System;
+namespace LiteDB.Studio.Wpf.Services;
 
-namespace LiteDB.Studio.Wpf.Services
+public class TransactionStateChangedEventArgs(bool transactionActive) : EventArgs
 {
-    public class TransactionStateChangedEventArgs : EventArgs
-    {
-        public bool TransactionActive { get; }
-
-        public TransactionStateChangedEventArgs(bool transactionActive)
-        {
-            TransactionActive = transactionActive;
-        }
-    }
+    public bool TransactionActive { get; } = transactionActive;
 }

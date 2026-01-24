@@ -1,15 +1,6 @@
 using System;
-using System.Linq;
 using System.Threading;
-using System.Threading.Tasks;
 using Xunit;
-using ICSharpCode.AvalonEdit;
-using LiteDB.Studio.Wpf.Controls;
-using NSubstitute;
-using LiteDB.Studio.Wpf.Services;
-using System.Windows.Data;
-using System.Windows.Threading;
-using System.Windows.Input;
 
 namespace LiteDB.Studio.Wpf.Tests.UI
 {

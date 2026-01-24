@@ -1,8 +1,8 @@
 using System.IO;
-using System.Text.Json;
 using System.Threading.Tasks;
 using Xunit;
 using LiteDB.Studio.Wpf.Services;
+using System.Collections.Generic;
 using System.Linq;
 
 namespace LiteDB.Studio.Wpf.Tests.Services
@@ -17,9 +17,10 @@ namespace LiteDB.Studio.Wpf.Tests.Services
 
             var completions = await SqlCompletionProvider.GetKeywordCompletionsFromFileAsync(tmp);
 
-            Assert.Contains(completions, c => c.Text == "SELECT");
-            Assert.Contains(completions, c => c.Text == "INSERT");
-            Assert.Contains(completions, c => c.Text == "EXPLAIN");
+            var sqlCompletionProviders = completions.ToList();
+            Assert.Contains(sqlCompletionProviders, c => c.Text == "SELECT");
+            Assert.Contains(sqlCompletionProviders, c => c.Text == "INSERT");
+            Assert.Contains(sqlCompletionProviders, c => c.Text == "EXPLAIN");
 
             File.Delete(tmp);
         }

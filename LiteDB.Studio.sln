@@ -9,6 +9,8 @@ Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "LiteDB", "LiteDB\LiteDB\Lit
 EndProject
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "LiteDB.Studio.Wpf.Tests", "LiteDB.Studio.Wpf.Tests\LiteDB.Studio.Wpf.Tests.csproj", "{3E4F7A01-9C2B-4F12-8E7A-9F0A1B2C3D4E}"
 EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "LiteDB.Studio.Wpf", "LiteDB.Studio.Wpf\LiteDB.Studio.Wpf.csproj", "{10576701-626C-6490-9F6F-A5C70A471605}"
+EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
 		Debug|Any CPU = Debug|Any CPU
@@ -27,6 +29,10 @@ Global
 		{3E4F7A01-9C2B-4F12-8E7A-9F0A1B2C3D4E}.Debug|Any CPU.Build.0 = Debug|Any CPU
 		{3E4F7A01-9C2B-4F12-8E7A-9F0A1B2C3D4E}.Release|Any CPU.ActiveCfg = Release|Any CPU
 		{3E4F7A01-9C2B-4F12-8E7A-9F0A1B2C3D4E}.Release|Any CPU.Build.0 = Release|Any CPU
+		{10576701-626C-6490-9F6F-A5C70A471605}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{10576701-626C-6490-9F6F-A5C70A471605}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{10576701-626C-6490-9F6F-A5C70A471605}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{10576701-626C-6490-9F6F-A5C70A471605}.Release|Any CPU.Build.0 = Release|Any CPU
 	EndGlobalSection
 	GlobalSection(SolutionProperties) = preSolution
 		HideSolutionNode = FALSE

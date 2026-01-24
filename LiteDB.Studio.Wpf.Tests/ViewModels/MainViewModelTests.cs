@@ -8,19 +8,20 @@ namespace LiteDB.Studio.Wpf.Tests.ViewModels
     public class MainViewModelTests
     {
         [Fact]
-        public async Task ConnectCommand_SetsIsConnected()
+        public Task ConnectCommand_SetsIsConnected()
         {
             var mockDbService = Substitute.For<LiteDB.Studio.Wpf.Services.IDatabaseService>();
             mockDbService.ConnectAsync(Arg.Any<string>(), Arg.Any<CancellationToken>())
                 .Returns(Task.CompletedTask);
 
-            var vm = new LiteDB.Studio.Wpf.ViewModels.MainViewModel(mockDbService);
-
-            // Since ConnectCommand shows a dialog, we can't easily test the full flow
-            // Instead, test that the service connection sets IsConnected
-            vm.IsConnected = true; // Simulate successful connection
+            var vm = new LiteDB.Studio.Wpf.ViewModels.MainViewModel(mockDbService) {
+                // Since ConnectCommand shows a dialog, we can't easily test the full flow
+                // Instead, test that the service connection sets IsConnected
+                IsConnected = true // Simulate successful connection
+            };
 
             Assert.True(vm.IsConnected);
+            return Task.CompletedTask;
         }
 
         [Fact]
