@@ -3,16 +3,18 @@ using LiteDB.Studio.Wpf.Services;
 using Serilog;
 using System.Collections.ObjectModel;
 using System.Collections.Specialized;
+using LiteDB.Studio.Mvvm;
+using LiteDB.Studio.Mvvm.ViewModels.Shell;
 
 namespace LiteDB.Studio.Wpf.ViewModels;
 
-public partial class DatabaseTreeViewModel : ObservableObject
+public partial class DatabaseTreeViewModel : ShellViewModel
 {
     private readonly IDatabaseService _databaseService;
 
     public event EventHandler<string>? InsertSnippetRequested;
 
-    public DatabaseTreeViewModel(IDatabaseService databaseService)
+    public DatabaseTreeViewModel(IDatabaseService databaseService) : base(LiteDbStudioApplication.ShellContentView)
     {
         _databaseService = databaseService ?? throw new ArgumentNullException(nameof(databaseService));
         RootNodes = [];
@@ -63,9 +65,9 @@ public partial class DatabaseTreeViewModel : ObservableObject
             var collections = 0;
             var system = 0;
 
-            foreach (var root in RootNodes)
+            foreach (DbTreeNode root in RootNodes)
             {
-                foreach (var child in root.Children)
+                foreach (DbTreeNode child in root.Children)
                 {
                     switch (child.Tag)
                     {

@@ -27,7 +27,7 @@ public class AvalonEditorAdapter : IEditorAdapter
 
     public (int Line, int Column) GetCaretLineColumn()
     {
-        var c = _editor.TextArea.Caret;
+        Caret c = _editor.TextArea.Caret;
         return (c.Line, c.Column);
     }
 
@@ -42,8 +42,8 @@ public class AvalonEditorAdapter : IEditorAdapter
     public void ShowCompletion(IEnumerable<CompletionItem> items)
     {
         var window = new CompletionWindow(_editor.TextArea);
-        var data = window.CompletionList.CompletionData;
-        foreach (var it in items)
+        IList<ICompletionData> data = window.CompletionList.CompletionData;
+        foreach (CompletionItem it in items)
         {
             data.Add(new SimpleCompletionData(it.Text, it.Description));
         }

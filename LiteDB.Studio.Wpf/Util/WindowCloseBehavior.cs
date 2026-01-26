@@ -20,7 +20,10 @@ public static class WindowCloseBehavior
 
     private static void OnCloseTriggerChanged(DependencyObject d, DependencyPropertyChangedEventArgs e)
     {
-        if (d is not Window window || e.NewValue is not bool result) return;
+        if (d is not Window window || e.NewValue is not bool result) {
+            return;
+        }
+
         window.DialogResult = result;
         window.Close();
     }

@@ -13,12 +13,22 @@ public static class BsonDataGridHelper
         typeof(BsonDataGridHelper),
         new PropertyMetadata(false, OnEnableChanged));
 
-    public static void SetEnable(DependencyObject element, bool value) => element.SetValue(EnableProperty, value);
-    public static bool GetEnable(DependencyObject element) => (bool)element.GetValue(EnableProperty);
+    public static void SetEnable(DependencyObject element, bool value)
+    {
+        element.SetValue(EnableProperty, value);
+    }
+
+    public static bool GetEnable(DependencyObject element)
+    {
+        return (bool)element.GetValue(EnableProperty);
+    }
 
     private static void OnEnableChanged(DependencyObject d, DependencyPropertyChangedEventArgs e)
     {
-        if (d is not DataGrid grid) return;
+        if (d is not DataGrid grid) {
+            return;
+        }
+
         if ((bool)e.NewValue)
         {
             grid.AutoGeneratingColumn += Grid_AutoGeneratingColumn;
@@ -48,7 +58,10 @@ public static class BsonDataGridHelper
         try
         {
             // Apply BsonValue string converter to all text columns so BsonValue types render properly
-            if (e.Column is not DataGridTextColumn textColumn) return;
+            if (e.Column is not DataGridTextColumn textColumn) {
+                return;
+            }
+
             if (textColumn.Binding is Binding binding)
             {
                 binding.Converter = new BsonValueToStringConverter();

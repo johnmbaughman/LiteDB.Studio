@@ -5,7 +5,7 @@ namespace LiteDB.Studio.Wpf.Util;
 
 public class BsonValueToStringConverter : IValueConverter
 {
-    public object Convert(object value, Type targetType, object parameter, CultureInfo culture)
+    public object Convert(object? value, Type targetType, object? parameter, CultureInfo culture)
     {
         var isFull = parameter?.ToString() == "full";
 

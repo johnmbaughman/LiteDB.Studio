@@ -23,7 +23,9 @@ public class GrayableImage : Image
 
     private void SourcePropertyChanged(object? sender, EventArgs e)
     {
-        if (_isUpdating) return;
+        if (_isUpdating) {
+            return;
+        }
 
         _originalSource = Source;
         _graySource = CreateGraySource(_originalSource);
@@ -31,7 +33,7 @@ public class GrayableImage : Image
         _isUpdating = true;
         try
         {
-            var newSource = IsEnabled ? _originalSource : _graySource;
+            ImageSource newSource = IsEnabled ? _originalSource : _graySource;
             if (!ReferenceEquals(Source, newSource))
             {
                 Source = newSource;
@@ -45,7 +47,9 @@ public class GrayableImage : Image
 
     private void GrayableImage_IsEnabledChanged(object sender, DependencyPropertyChangedEventArgs e)
     {
-        if (_isUpdating) return;
+        if (_isUpdating) {
+            return;
+        }
 
         if (_originalSource == null)
         {
@@ -56,7 +60,7 @@ public class GrayableImage : Image
         _isUpdating = true;
         try
         {
-            var newSource = IsEnabled ? _originalSource : _graySource;
+            ImageSource? newSource = IsEnabled ? _originalSource : _graySource;
             if (!ReferenceEquals(Source, newSource))
             {
                 Source = newSource;

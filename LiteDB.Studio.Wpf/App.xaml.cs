@@ -1,7 +1,10 @@
 using System.Windows;
+using LiteDB.Studio.Mvvm.Hosting;
 using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.DependencyInjection;
 using LiteDB.Studio.Wpf.Util;
+using LiteDB.Studio.Wpf.ViewModels;
+using LiteDB.Studio.Wpf.Views;
 using Serilog;
 
 namespace LiteDB.Studio.Wpf;
@@ -10,36 +13,39 @@ public partial class App
 {
     public IHost? HostInstance { get; private set; }
 
-    protected override async void OnStartup(StartupEventArgs e)
+    public App()
     {
-        try
-        {
-            Logging.Configure();
+        //try {
+        //    Logging.Configure();
+        AppHost = new HostBuilder()
+            .ConfigureUi<MainWindow, MainViewModel>()
+            .Build();
 
-            // Add global exception handlers
-            DispatcherUnhandledException += App_DispatcherUnhandledException;
-            AppDomain.CurrentDomain.UnhandledException += CurrentDomain_UnhandledException;
+        //    // Add global exception handlers
+        //    DispatcherUnhandledException += App_DispatcherUnhandledException;
+        //    AppDomain.CurrentDomain.UnhandledException += CurrentDomain_UnhandledException;
 
-            Log.Information("Application starting");
+        //    Log.Information("Application starting");
 
-            base.OnStartup(e);
+        //    base.OnStartup(e);
 
-            HostInstance = Host.CreateDefaultBuilder()
-                .ConfigureServices((_, services) =>
-                {
-                    // Register ViewModels and services here
-                    services.AddSingleton<ViewModels.MainViewModel>();
-                    services.AddSingleton<Services.IDatabaseService, Services.LiteDbService>();
-                    services.AddTransient<ViewModels.ResultGridViewModel>();
-                })
-                .Build();
+        //    HostInstance = Host.CreateDefaultBuilder()
+        //        .ConfigureServices((_, services) => {
+        //            // Register views here
+        //            services.AddSingleton<Views.MainWindow>();
 
-            await HostInstance.StartAsync();
-        }
-        catch (Exception ex)
-        {
-            Log.Fatal(ex, "Application failed to start: {Message}", ex.Message);
-        }
+        //            // Register ViewModels and services here
+        //            services.AddSingleton<ViewModels.MainViewModel>();
+        //            services.AddSingleton<Services.IDatabaseService, Services.LiteDbService>();
+        //            services.AddTransient<ViewModels.ResultGridViewModel>();
+        //        })
+        //        .Build();
+
+        //await HostInstance.StartAsync();
+        //}
+        //catch (Exception ex) {
+        //    Log.Fatal(ex, "Application failed to start: {Message}", ex.Message);
+        //}
     }
 
     private static void App_DispatcherUnhandledException(object sender, System.Windows.Threading.DispatcherUnhandledExceptionEventArgs e)

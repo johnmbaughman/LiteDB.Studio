@@ -11,16 +11,23 @@ public class PathTrimmerConverter : IValueConverter
 
     public object Convert(object? value, Type targetType, object? parameter, CultureInfo culture)
     {
-        if (value == null) return string.Empty;
+        if (value == null) {
+            return string.Empty;
+        }
+
         var path = value as string;
-        if (string.IsNullOrEmpty(path)) return string.Empty;
+        if (string.IsNullOrEmpty(path)) {
+            return string.Empty;
+        }
 
         try
         {
             var fileName = Path.GetFileName(path);
             var dir = Path.GetDirectoryName(path) ?? string.Empty;
 
-            if (StartCounter > dir.Length + 3) return path;
+            if (StartCounter > dir.Length + 3) {
+                return path;
+            }
 
             var prefix = dir[..Math.Max(0, StartCounter - 3)];
             return $"{prefix}...\\{fileName}";

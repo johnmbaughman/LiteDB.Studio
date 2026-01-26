@@ -2,9 +2,9 @@ using System;
 using System.Threading;
 using Xunit;
 using ICSharpCode.AvalonEdit;
-using LiteDB.Studio.Wpf.Controls;
 using System.Windows.Threading;
 using System.Linq;
+using LiteDB.Studio.Wpf.Behaviors;
 
 namespace LiteDB.Studio.Wpf.Tests.Controls
 {

@@ -7,10 +7,19 @@ public class EnumToBooleanConverter : IValueConverter
 {
     public object Convert(object? value, Type targetType, object? parameter, CultureInfo culture)
     {
-        if (parameter == null || value == null) return false;
+        if (parameter == null || value == null) {
+            return false;
+        }
+
         var param = parameter?.ToString();
-        if (string.IsNullOrEmpty(param)) return false;
-        if (!Enum.IsDefined(value.GetType(), param)) return false;
+        if (string.IsNullOrEmpty(param)) {
+            return false;
+        }
+
+        if (!Enum.IsDefined(value.GetType(), param)) {
+            return false;
+        }
+
         try
         {
             var enumValue = Enum.Parse(value.GetType(), param);
@@ -24,9 +33,15 @@ public class EnumToBooleanConverter : IValueConverter
 
     public object ConvertBack(object? value, Type targetType, object? parameter, CultureInfo culture)
     {
-        if (parameter == null || value is not bool b || !b) return Binding.DoNothing;
+        if (parameter == null || value is not bool b || !b) {
+            return Binding.DoNothing;
+        }
+
         var param = parameter?.ToString();
-        if (string.IsNullOrEmpty(param)) return Binding.DoNothing;
+        if (string.IsNullOrEmpty(param)) {
+            return Binding.DoNothing;
+        }
+
         try
         {
             return Enum.Parse(targetType, param);

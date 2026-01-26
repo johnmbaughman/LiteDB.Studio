@@ -55,7 +55,7 @@ public partial class ResultGrid
     {
         ResultsDataGrid.Columns.Clear();
         _columnNames.Clear();
-        foreach (var col in viewModel.Columns)
+        foreach (DataGridColumn col in viewModel.Columns)
         {
             // Allow user resizing per column and add to grid
             col.CanUserResize = true;
@@ -116,20 +116,24 @@ public partial class ResultGrid
     {
         try
         {
-            if (DataContext is not ResultGridViewModel viewModel)
+            if (DataContext is not ResultGridViewModel viewModel) {
                 return;
+            }
 
-            if (e.EditAction != DataGridEditAction.Commit)
+            if (e.EditAction != DataGridEditAction.Commit) {
                 return;
+            }
 
             var row = e.Row.Item;
             var column = e.Column as DataGridTextColumn;
-            if (column == null)
+            if (column == null) {
                 return;
+            }
 
             var textBox = e.EditingElement as TextBox;
-            if (textBox == null)
+            if (textBox == null) {
                 return;
+            }
 
             var newValue = textBox.Text;
             var columnName = column.Header?.ToString() ?? string.Empty;
@@ -148,10 +152,22 @@ public partial class ResultGrid
     private static object ParseValue(string value)
     {
         // Simple parsing, can be improved
-        if (int.TryParse(value, out var i)) return i;
-        if (long.TryParse(value, out var l)) return l;
-        if (double.TryParse(value, out var d)) return d;
-        if (bool.TryParse(value, out var b)) return b;
+        if (int.TryParse(value, out var i)) {
+            return i;
+        }
+
+        if (long.TryParse(value, out var l)) {
+            return l;
+        }
+
+        if (double.TryParse(value, out var d)) {
+            return d;
+        }
+
+        if (bool.TryParse(value, out var b)) {
+            return b;
+        }
+
         return value;
     }
 
@@ -160,21 +176,25 @@ public partial class ResultGrid
         // Handle sorting manually because rows are BsonDocument and column bindings use indexer syntax
         e.Handled = true;
 
-        var column = e.Column;
+        DataGridColumn column = e.Column;
         var columnName = _columnNames.TryGetValue(column, out var nm) ? nm : column.Header?.ToString();
-        if (string.IsNullOrEmpty(columnName)) return;
+        if (string.IsNullOrEmpty(columnName)) {
+            return;
+        }
 
         // Toggle sort direction
-        var direction = column.SortDirection == ListSortDirection.Ascending ? ListSortDirection.Descending : ListSortDirection.Ascending;
+        ListSortDirection direction = column.SortDirection == ListSortDirection.Ascending ? ListSortDirection.Descending : ListSortDirection.Ascending;
 
         // Clear other column sort indicators and headers
-        foreach (var col in ResultsDataGrid.Columns)
+        foreach (DataGridColumn? col in ResultsDataGrid.Columns)
         {
             if (col == column) { continue; }
 
             col.SortDirection = null;
             // restore header text from stored mapping
-            if (_columnNames.TryGetValue(col, out var name)) col.Header = name;
+            if (_columnNames.TryGetValue(col, out var name)) {
+                col.Header = name;
+            }
         }
 
         column.SortDirection = direction;
@@ -183,7 +203,9 @@ public partial class ResultGrid
         UpdateColumnHeaderWithSortIndicator(column, direction);
 
         var view = CollectionViewSource.GetDefaultView(ResultsDataGrid.ItemsSource) as ListCollectionView;
-        if (view == null) return;
+        if (view == null) {
+            return;
+        }
 
         view.CustomSort = new BsonColumnComparer(columnName, direction);
     }
@@ -204,20 +226,30 @@ public partial class ResultGrid
         public int Compare(object? x, object? y)
         {
             // Handle nulls
-            if (ReferenceEquals(x, y)) return 0;
-            if (x is null) return direction == ListSortDirection.Ascending ? -1 : 1;
-            if (y is null) return direction == ListSortDirection.Ascending ? 1 : -1;
+            if (ReferenceEquals(x, y)) {
+                return 0;
+            }
+
+            if (x is null) {
+                return direction == ListSortDirection.Ascending ? -1 : 1;
+            }
+
+            if (y is null) {
+                return direction == ListSortDirection.Ascending ? 1 : -1;
+            }
 
             // Expect rows to be BsonDocument or objects that can be treated like BsonDocument
             var docX = x as BsonDocument;
             var docY = y as BsonDocument;
 
-            var valX = BsonValue.Null;
-            var valY = BsonValue.Null;
+            BsonValue valX = BsonValue.Null;
+            BsonValue valY = BsonValue.Null;
 
             try
             {
-                if (docX != null) valX = docX[columnName];
+                if (docX != null) {
+                    valX = docX[columnName];
+                }
             }
             catch (Exception ex)
             {
@@ -226,7 +258,9 @@ public partial class ResultGrid
 
             try
             {
-                if (docY != null) valY = docY[columnName];
+                if (docY != null) {
+                    valY = docY[columnName];
+                }
             }
             catch (Exception ex)
             {
@@ -248,7 +282,7 @@ public partial class ResultGrid
     private void ResultsDataGrid_RowHeaderMouseLeftButtonDown(object? sender, MouseButtonEventArgs e)
     {
         // Disable row resizing entirely: only intercept Thumb instances that belong to a DataGridRowHeader.
-        var possibleThumb = FindAncestor<Thumb>(e.OriginalSource as DependencyObject);
+        Thumb? possibleThumb = FindAncestor<Thumb>(e.OriginalSource as DependencyObject);
         if (possibleThumb != null && FindAncestor<DataGridRowHeader>(possibleThumb) != null)
         {
             // If the Thumb is part of the row header template, block it so rows can't be resized.
@@ -257,12 +291,16 @@ public partial class ResultGrid
         }
 
         // Detect the row header that was clicked
-        var header = FindAncestor<DataGridRowHeader>(e.OriginalSource as DependencyObject);
-        if (header == null) return;
+        DataGridRowHeader? header = FindAncestor<DataGridRowHeader>(e.OriginalSource as DependencyObject);
+        if (header == null) {
+            return;
+        }
 
         var item = header.DataContext;
         var index = ResultsDataGrid.Items.IndexOf(item);
-        if (index < 0) return;
+        if (index < 0) {
+            return;
+        }
 
         var shift = Keyboard.IsKeyDown(Key.LeftShift) || Keyboard.IsKeyDown(Key.RightShift);
         var ctrl = Keyboard.IsKeyDown(Key.LeftCtrl) || Keyboard.IsKeyDown(Key.RightCtrl);
@@ -275,7 +313,7 @@ public partial class ResultGrid
     private void ResultsDataGrid_PreviewMouseLeftButtonDown(object? sender, MouseButtonEventArgs e)
     {
         // Disable row resizing entirely: only block Thumb interactions that are part of the row header template.
-        var possibleThumb = FindAncestor<Thumb>(e.OriginalSource as DependencyObject);
+        Thumb? possibleThumb = FindAncestor<Thumb>(e.OriginalSource as DependencyObject);
         if (possibleThumb != null && FindAncestor<DataGridRowHeader>(possibleThumb) != null)
         {
             e.Handled = true;
@@ -283,12 +321,14 @@ public partial class ResultGrid
         }
 
         // If the click is on the row header (e.g. the number text), handle it here so clicking the number works
-        var header = FindAncestor<DataGridRowHeader>(e.OriginalSource as DependencyObject);
+        DataGridRowHeader? header = FindAncestor<DataGridRowHeader>(e.OriginalSource as DependencyObject);
         if (header != null)
         {
             var item = header.DataContext;
             var index = ResultsDataGrid.Items.IndexOf(item);
-            if (index < 0) return;
+            if (index < 0) {
+                return;
+            }
 
             var shift = Keyboard.IsKeyDown(Key.LeftShift) || Keyboard.IsKeyDown(Key.RightShift);
             var ctrl = Keyboard.IsKeyDown(Key.LeftCtrl) || Keyboard.IsKeyDown(Key.RightCtrl);
@@ -298,11 +338,15 @@ public partial class ResultGrid
             return;
         }
 
-        var row = FindAncestor<DataGridRow>(e.OriginalSource as DependencyObject);
-        if (row == null) return;
+        DataGridRow? row = FindAncestor<DataGridRow>(e.OriginalSource as DependencyObject);
+        if (row == null) {
+            return;
+        }
 
         var index2 = ResultsDataGrid.Items.IndexOf(row.Item);
-        if (index2 < 0) return;
+        if (index2 < 0) {
+            return;
+        }
 
         var shift2 = Keyboard.IsKeyDown(Key.LeftShift) || Keyboard.IsKeyDown(Key.RightShift);
         var ctrl2 = Keyboard.IsKeyDown(Key.LeftCtrl) || Keyboard.IsKeyDown(Key.RightCtrl);
@@ -324,12 +368,14 @@ public partial class ResultGrid
         }
 
         // Keep last anchor in sync with current cell or last selected item
-        var currentCell = ResultsDataGrid.CurrentCell;
+        DataGridCellInfo currentCell = ResultsDataGrid.CurrentCell;
         var currentItem = currentCell.Item;
         if (currentItem != null)
         {
             var idx = ResultsDataGrid.Items.IndexOf(currentItem);
-            if (idx >= 0) _lastAnchorRow = idx;
+            if (idx >= 0) {
+                _lastAnchorRow = idx;
+            }
         }
         else if (ResultsDataGrid.SelectedItems.Count > 0)
         {
@@ -337,7 +383,9 @@ public partial class ResultGrid
             if (last != null)
             {
                 var idx = ResultsDataGrid.Items.IndexOf(last);
-                if (idx >= 0) _lastAnchorRow = idx;
+                if (idx >= 0) {
+                    _lastAnchorRow = idx;
+                }
             }
         }
 
@@ -351,7 +399,10 @@ public partial class ResultGrid
 
         if (shift)
         {
-            if (_lastAnchorRow < 0) _lastAnchorRow = index;
+            if (_lastAnchorRow < 0) {
+                _lastAnchorRow = index;
+            }
+
             var start = Math.Min(_lastAnchorRow, index);
             var end = Math.Max(_lastAnchorRow, index);
 
@@ -359,17 +410,22 @@ public partial class ResultGrid
             for (var i = start; i <= end; i++)
             {
                 var it = ResultsDataGrid.Items[i];
-                if (it == CollectionView.NewItemPlaceholder) continue;
+                if (it == CollectionView.NewItemPlaceholder) {
+                    continue;
+                }
+
                 ResultsDataGrid.SelectedItems.Add(it);
             }
         }
         else if (ctrl)
         {
             var item = ResultsDataGrid.Items[index];
-            if (ResultsDataGrid.SelectedItems.Contains(item))
+            if (ResultsDataGrid.SelectedItems.Contains(item)) {
                 ResultsDataGrid.SelectedItems.Remove(item);
-            else
+            }
+            else {
                 ResultsDataGrid.SelectedItems.Add(item);
+            }
         }
         else
         {
@@ -389,7 +445,10 @@ public partial class ResultGrid
         for (var i = 0; i < ResultsDataGrid.Items.Count; i++)
         {
             var row = ResultsDataGrid.ItemContainerGenerator.ContainerFromIndex(i) as DataGridRow;
-            if (row == null) continue;
+            if (row == null) {
+                continue;
+            }
+
             if (row.Tag is TextBlock indicator)
             {
                 // Use Hidden so the left space for the arrow is preserved and numbers don't shift
@@ -408,7 +467,7 @@ public partial class ResultGrid
         ResultsDataGrid.CanUserResizeColumns = true;
 
         // First set columns to size to cells so WPF measures them based on content
-        foreach (var col in ResultsDataGrid.Columns)
+        foreach (DataGridColumn? col in ResultsDataGrid.Columns)
         {
             try
             {
@@ -423,7 +482,7 @@ public partial class ResultGrid
         // Run after layout so ActualWidth is available
         Dispatcher.BeginInvoke(new Action(() =>
         {
-            foreach (var col in ResultsDataGrid.Columns)
+            foreach (DataGridColumn? col in ResultsDataGrid.Columns)
             {
                 try
                 {
@@ -442,10 +501,13 @@ public partial class ResultGrid
 
     private static T? FindAncestor<T>(DependencyObject? child) where T : DependencyObject
     {
-        var current = child;
+        DependencyObject? current = child;
         while (current != null)
         {
-            if (current is T typed) return typed;
+            if (current is T typed) {
+                return typed;
+            }
+
             current = VisualTreeHelper.GetParent(current);
         }
         return null;

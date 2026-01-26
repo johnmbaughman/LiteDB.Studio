@@ -29,7 +29,9 @@ public class LiteDbService : IDatabaseService
 
     public Task ConnectAsync(string connectionString, CancellationToken cancellationToken)
     {
-        if (IsConnected) throw new InvalidOperationException("Already connected");
+        if (IsConnected) {
+            throw new InvalidOperationException("Already connected");
+        }
 
         try
         {
@@ -60,7 +62,10 @@ public class LiteDbService : IDatabaseService
 
     public Task DisconnectAsync()
     {
-        if (!IsConnected) return Task.CompletedTask;
+        if (!IsConnected)
+        {
+            return Task.CompletedTask;
+        }
 
         if (TransactionActive)
         {
@@ -85,13 +90,15 @@ public class LiteDbService : IDatabaseService
 
     public Task<QueryResult> ExecuteAsync(string? query, CancellationToken cancellationToken)
     {
-        if (!IsConnected) throw new InvalidOperationException("Not connected");
+        if (!IsConnected) {
+            throw new InvalidOperationException("Not connected");
+        }
 
         var stopwatch = Stopwatch.StartNew();
 
         try
         {
-            using var reader = _db!.Execute(query);
+            using IBsonDataReader reader = _db!.Execute(query);
             var columns = new List<ColumnInfo>();
             var rows = new List<object>();
             var rowCount = 0;
@@ -155,7 +162,9 @@ public class LiteDbService : IDatabaseService
 
     public Task<IEnumerable<string>> GetCollectionNamesAsync(CancellationToken cancellationToken)
     {
-        if (!IsConnected) throw new InvalidOperationException("Not connected");
+        if (!IsConnected) {
+            throw new InvalidOperationException("Not connected");
+        }
 
         var names = _db!.GetCollectionNames().ToArray();
         Log.Information("GetCollectionNamesAsync returning {Count} collections", names.Length);
@@ -164,17 +173,19 @@ public class LiteDbService : IDatabaseService
 
     public Task<IEnumerable<string>> GetSystemCollectionNamesAsync(CancellationToken cancellationToken)
     {
-        if (!IsConnected) throw new InvalidOperationException("Not connected");
+        if (!IsConnected) {
+            throw new InvalidOperationException("Not connected");
+        }
 
         try
         {
             // Try reading $cols system collection which records system collections with type='system'
-            var sysCol = _db!.GetCollection("$cols");
+            ILiteCollection<BsonDocument> sysCol = _db!.GetCollection("$cols");
             if (sysCol != null)
             {
                 try
                 {
-                    var docs = sysCol.Query().Where("type = 'system'").OrderBy("name").ToDocuments();
+                    IEnumerable<BsonDocument> docs = sysCol.Query().Where("type = 'system'").OrderBy("name").ToDocuments();
                     var names = docs.Select(d => d["name"].AsString).ToArray();
                     if (names.Length > 0)
                     {
@@ -201,26 +212,28 @@ public class LiteDbService : IDatabaseService
 
     public Task<IEnumerable<ColumnInfo>> GetCollectionSchemaAsync(string collectionName, CancellationToken cancellationToken)
     {
-        if (!IsConnected) throw new InvalidOperationException("Not connected");
+        if (!IsConnected) {
+            throw new InvalidOperationException("Not connected");
+        }
 
-        var collection = _db!.GetCollection(collectionName);
+        ILiteCollection<BsonDocument> collection = _db!.GetCollection(collectionName);
         var schema = new Dictionary<string, string>();
 
         // Sample first 100 documents to infer schema
-        var documents = collection.Find(Query.All(), 0, 100);
-        foreach (var doc in documents)
+        IEnumerable<BsonDocument> documents = collection.Find(Query.All(), 0, 100);
+        foreach (BsonDocument? doc in documents)
         {
             foreach (var key in doc.Keys)
             {
                 if (schema.ContainsKey(key)) { continue; }
 
-                var value = doc[key];
+                BsonValue value = doc[key];
                 schema[key] = value?.Type.ToString() ?? "Null";
             }
             cancellationToken.ThrowIfCancellationRequested();
         }
 
-        var columns = schema.Select(kvp => new ColumnInfo
+        IOrderedEnumerable<ColumnInfo> columns = schema.Select(kvp => new ColumnInfo
         {
             Name = kvp.Key,
             BsonType = kvp.Value,
@@ -232,20 +245,22 @@ public class LiteDbService : IDatabaseService
 
     public Task UpdateDocumentFieldAsync(string collectionName, object documentId, string fieldPath, object? newValue, CancellationToken cancellationToken)
     {
-        if (!IsConnected) throw new InvalidOperationException("Not connected");
+        if (!IsConnected) {
+            throw new InvalidOperationException("Not connected");
+        }
 
-        var collection = _db!.GetCollection(collectionName);
+        ILiteCollection<BsonDocument> collection = _db!.GetCollection(collectionName);
         var id = new BsonValue(documentId);
 
         // Find the document
-        var doc = collection.FindById(id);
+        BsonDocument doc = collection.FindById(id);
         if (doc == null)
         {
             throw new InvalidOperationException($"Document with id {documentId} not found in collection {collectionName}");
         }
 
         // Convert newValue to BsonValue
-        var bsonValue = newValue != null ? new BsonValue(newValue) : BsonValue.Null;
+        BsonValue bsonValue = newValue != null ? new BsonValue(newValue) : BsonValue.Null;
 
         // For now, assume top-level field (fieldPath without dots)
         if (fieldPath.Contains('.'))
@@ -267,8 +282,13 @@ public class LiteDbService : IDatabaseService
 
     public Task BeginTransactionAsync(CancellationToken cancellationToken)
     {
-        if (!IsConnected) throw new InvalidOperationException("Not connected");
-        if (TransactionActive) throw new InvalidOperationException("Transaction already active");
+        if (!IsConnected) {
+            throw new InvalidOperationException("Not connected");
+        }
+
+        if (TransactionActive) {
+            throw new InvalidOperationException("Transaction already active");
+        }
 
         _db!.BeginTrans();
         TransactionActive = true;
@@ -278,8 +298,13 @@ public class LiteDbService : IDatabaseService
 
     public Task CommitTransactionAsync(CancellationToken cancellationToken)
     {
-        if (!IsConnected) throw new InvalidOperationException("Not connected");
-        if (!TransactionActive) throw new InvalidOperationException("No active transaction");
+        if (!IsConnected) {
+            throw new InvalidOperationException("Not connected");
+        }
+
+        if (!TransactionActive) {
+            throw new InvalidOperationException("No active transaction");
+        }
 
         _db!.Commit();
         TransactionActive = false;
@@ -289,8 +314,13 @@ public class LiteDbService : IDatabaseService
 
     public Task RollbackTransactionAsync(CancellationToken cancellationToken)
     {
-        if (!IsConnected) throw new InvalidOperationException("Not connected");
-        if (!TransactionActive) throw new InvalidOperationException("No active transaction");
+        if (!IsConnected) {
+            throw new InvalidOperationException("Not connected");
+        }
+
+        if (!TransactionActive) {
+            throw new InvalidOperationException("No active transaction");
+        }
 
         _db!.Rollback();
         TransactionActive = false;
@@ -300,7 +330,9 @@ public class LiteDbService : IDatabaseService
 
     public Task CheckpointAsync(CancellationToken cancellationToken)
     {
-        if (!IsConnected) throw new InvalidOperationException("Not connected");
+        if (!IsConnected) {
+            throw new InvalidOperationException("Not connected");
+        }
 
         _db!.Checkpoint();
         return Task.CompletedTask;

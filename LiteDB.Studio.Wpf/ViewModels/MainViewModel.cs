@@ -5,10 +5,11 @@ using System.Collections.ObjectModel;
 using System.Data;
 using System.Globalization;
 using System.Windows;
+using LiteDB.Studio.Mvvm.ViewModels.Shell;
 
 namespace LiteDB.Studio.Wpf.ViewModels;
 
-public partial class MainViewModel : ObservableObject
+public partial class MainViewModel : ShellContentViewModel
 {
     private readonly IDatabaseService _dbService;
 
@@ -54,7 +55,9 @@ public partial class MainViewModel : ObservableObject
         OpenRecentWrapperCommand = new RelayCommand<object>(p =>
         {
             // ensure we only forward string parameters to the async handler
-            if (p is string s && !string.IsNullOrEmpty(s)) _ = OpenRecentAsync(s);
+            if (p is string s && !string.IsNullOrEmpty(s)) {
+                _ = OpenRecentAsync(s);
+            }
         });
         ClearRecentCommand = new RelayCommand(ClearRecentList);
         ValidateRecentCommand = new RelayCommand(ValidateRecentList);
@@ -68,7 +71,7 @@ public partial class MainViewModel : ObservableObject
     public void Initialize()
     {
         // load persisted recent list
-        foreach (var cs in Util.AppSettingsManager.ApplicationSettings.RecentConnectionStrings)
+        foreach (ConnectionString cs in Util.AppSettingsManager.ApplicationSettings.RecentConnectionStrings)
         {
             RecentDatabases.Add(cs.Filename);
         }
@@ -143,10 +146,14 @@ public partial class MainViewModel : ObservableObject
         };
 
         var shown = win.ShowDialog();
-        if (shown != true) return;
+        if (shown != true) {
+            return;
+        }
 
         var filename = vm.Filename;
-        if (string.IsNullOrEmpty(filename)) return;
+        if (string.IsNullOrEmpty(filename)) {
+            return;
+        }
 
         var cs = new ConnectionString(filename);
 
@@ -226,14 +233,21 @@ public partial class MainViewModel : ObservableObject
 
     private void InsertSnippet(string? snippet)
     {
-        if (SelectedTab == null || string.IsNullOrEmpty(snippet)) return;
+        if (SelectedTab == null || string.IsNullOrEmpty(snippet)) {
+            return;
+        }
 
         var text = SelectedTab.EditorText;
         var offset = SelectedTab.CaretOffset;
 
         // Ensure offset is within bounds
-        if (offset < 0) offset = 0;
-        if (offset > text.Length) offset = text.Length;
+        if (offset < 0) {
+            offset = 0;
+        }
+
+        if (offset > text.Length) {
+            offset = text.Length;
+        }
 
         SelectedTab.EditorText = text.Insert(offset, snippet);
         SelectedTab.IsModified = true;
@@ -244,8 +258,10 @@ public partial class MainViewModel : ObservableObject
         var unsavedTabs = Tabs.Where(t => t is { IsModified: true, IsPlus: false }).ToList();
         if (unsavedTabs.Any())
         {
-            var result = MessageBox.Show("You have unsaved changes in some tabs. Do you want to disconnect anyway?", "Unsaved Changes", MessageBoxButton.YesNo, MessageBoxImage.Warning);
-            if (result != MessageBoxResult.Yes) return;
+            MessageBoxResult result = MessageBox.Show("You have unsaved changes in some tabs. Do you want to disconnect anyway?", "Unsaved Changes", MessageBoxButton.YesNo, MessageBoxImage.Warning);
+            if (result != MessageBoxResult.Yes) {
+                return;
+            }
         }
 
         try
@@ -281,23 +297,25 @@ public partial class MainViewModel : ObservableObject
         var newTab = new TabViewModel(_dbService) { Title = $"Query {Tabs.Count}" };
 
         // insert before plus tab
-        var plus = Tabs.FirstOrDefault(t => t.Title == "+");
+        TabViewModel? plus = Tabs.FirstOrDefault(t => t.Title == "+");
         if (plus != null)
         {
             var idx = Tabs.IndexOf(plus);
             Tabs.Insert(idx, newTab);
-            SelectedTab = newTab;
         }
         else
         {
             Tabs.Add(newTab);
-            SelectedTab = newTab;
         }
+
+        SelectedTab = newTab;
     }
 
     public void AddSqlSnippet(string sql)
     {
-        if (string.IsNullOrWhiteSpace(sql)) return;
+        if (string.IsNullOrWhiteSpace(sql)) {
+            return;
+        }
 
         // if there's no selected tab or selected tab is the plus tab, or current content is empty -> set into current
         if (SelectedTab == null || SelectedTab.Title == "+" || string.IsNullOrWhiteSpace(SelectedTab.EditorText))
@@ -314,7 +332,7 @@ public partial class MainViewModel : ObservableObject
         else
         {
             // insert new tab before plus
-            var plus = Tabs.FirstOrDefault(t => t.Title == "+");
+            TabViewModel? plus = Tabs.FirstOrDefault(t => t.Title == "+");
             var newTab = new TabViewModel(_dbService) { Title = $"Query {Tabs.Count}", EditorText = sql.Replace("\\n", "\n") };
             if (plus != null)
             {
@@ -332,9 +350,15 @@ public partial class MainViewModel : ObservableObject
 
     private void CloseTab(TabViewModel? tab)
     {
-        if (tab == null || tab.IsPlus) return;
+        if (tab == null || tab.IsPlus) {
+            return;
+        }
+
         var idx = Tabs.IndexOf(tab);
-        if (idx >= 0) Tabs.Remove(tab);
+        if (idx >= 0) {
+            Tabs.Remove(tab);
+        }
+
         if (Tabs.Count > 0)
         {
             SelectedTab = Tabs[Math.Max(0, idx - 1)];
@@ -343,15 +367,16 @@ public partial class MainViewModel : ObservableObject
 
     public async Task OpenRecentAsync(object? filename)
     {
-        var fname = filename as string;
-        if (string.IsNullOrEmpty(fname)) return;
+        var fName = filename as string;
+        if (string.IsNullOrEmpty(fName)) {
+            return;
+        }
 
-
-        CursorText = "Opening: " + fname;
+        CursorText = "Opening: " + fName;
 
         try
         {
-            var cs = new ConnectionString(fname);
+            var cs = new ConnectionString(fName);
             var connectionString = BuildConnectionString(cs);
             await _dbService.ConnectAsync(connectionString, CancellationToken.None);
 
@@ -359,7 +384,7 @@ public partial class MainViewModel : ObservableObject
             Util.AppSettingsManager.AddToRecentList(cs);
 
             IsConnected = true;
-            CurrentDatabase = fname;
+            CurrentDatabase = fName;
         }
         catch (Exception ex)
         {
@@ -379,7 +404,7 @@ public partial class MainViewModel : ObservableObject
     {
         Util.AppSettingsManager.ValidateRecentList();
         RecentDatabases.Clear();
-        foreach (var cs in Util.AppSettingsManager.ApplicationSettings.RecentConnectionStrings)
+        foreach (ConnectionString cs in Util.AppSettingsManager.ApplicationSettings.RecentConnectionStrings)
         {
             RecentDatabases.Add(cs.Filename);
         }
@@ -394,7 +419,7 @@ public partial class MainViewModel : ObservableObject
 
         for (var i = 0; i < 10; i++)
         {
-            var row = CurrentResults.NewRow();
+            DataRow row = CurrentResults.NewRow();
             row[0] = i;
             row[1] = sql + " - row " + i;
             CurrentResults.Rows.Add(row);
@@ -412,12 +437,29 @@ public partial class MainViewModel : ObservableObject
 
         parts.Add($"Connection={(cs.Connection == ConnectionType.Shared ? "shared" : "direct")}");
 
-        if (!string.IsNullOrWhiteSpace(cs.Password)) parts.Add($"Password={cs.Password}");
-        if (cs.ReadOnly) parts.Add("ReadOnly=true");
-        if (cs.Upgrade) parts.Add("Upgrade=true");
-        if (cs.AutoRebuild) parts.Add("Auto-Rebuild=true");
-        if (cs.InitialSize > 0) parts.Add($"Initial Size={cs.InitialSize.ToString(CultureInfo.InvariantCulture)}");
-        if (cs.Collation != null) parts.Add($"Collation={cs.Collation.ToString()}");
+        if (!string.IsNullOrWhiteSpace(cs.Password)) {
+            parts.Add($"Password={cs.Password}");
+        }
+
+        if (cs.ReadOnly) {
+            parts.Add("ReadOnly=true");
+        }
+
+        if (cs.Upgrade) {
+            parts.Add("Upgrade=true");
+        }
+
+        if (cs.AutoRebuild) {
+            parts.Add("Auto-Rebuild=true");
+        }
+
+        if (cs.InitialSize > 0) {
+            parts.Add($"Initial Size={cs.InitialSize.ToString(CultureInfo.InvariantCulture)}");
+        }
+
+        if (cs.Collation != null) {
+            parts.Add($"Collation={cs.Collation}");
+        }
 
         return string.Join(";", parts);
     }
@@ -445,5 +487,10 @@ public partial class MainViewModel : ObservableObject
     private void OnTransactionStateChanged(object? sender, TransactionStateChangedEventArgs e)
     {
         TransactionActive = e.TransactionActive;
+    }
+
+    public override void RegisterMessengerReceivers()
+    {
+
     }
 }

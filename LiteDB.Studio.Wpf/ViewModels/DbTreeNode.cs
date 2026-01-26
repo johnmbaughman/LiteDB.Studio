@@ -11,7 +11,7 @@ namespace LiteDB.Studio.Wpf.ViewModels;
 public partial class DbTreeNode(IDatabaseService databaseService, Action<string>? insertSnippetAction = null, Func<string, bool>? confirmer = null) : ObservableObject
 {
     private readonly IDatabaseService _databaseService = databaseService ?? throw new ArgumentNullException(nameof(databaseService));
-    
+
     public string Header { get; set; } = string.Empty;
 
     public string? Tag { get; set; }
@@ -30,14 +30,16 @@ public partial class DbTreeNode(IDatabaseService databaseService, Action<string>
     [RelayCommand]
     private async Task LoadChildrenAsync()
     {
-        if (IsLoaded) return;
+        if (IsLoaded) {
+            return;
+        }
 
         Children.Clear();
 
         if (Tag == "collection")
         {
-            var schema = await _databaseService.GetCollectionSchemaAsync(Header, CancellationToken.None);
-            foreach (var column in schema)
+            IEnumerable<ColumnInfo> schema = await _databaseService.GetCollectionSchemaAsync(Header, CancellationToken.None);
+            foreach (ColumnInfo column in schema)
             {
                 var childNode = new DbTreeNode(_databaseService)
                 {
@@ -55,11 +57,15 @@ public partial class DbTreeNode(IDatabaseService databaseService, Action<string>
     [RelayCommand]
     private async Task DropAsync()
     {
-        if (Tag != "collection") return;
+        if (Tag != "collection") {
+            return;
+        }
 
         var message = $"Are you sure you want to drop the collection '{Header}'? This action cannot be undone.";
         var confirmed = confirmer?.Invoke(message) ?? (MessageBox.Show(message, "Confirm Drop", MessageBoxButton.YesNo, MessageBoxImage.Warning) == MessageBoxResult.Yes);
-        if (!confirmed) return;
+        if (!confirmed) {
+            return;
+        }
 
         var dropQuery = $"DROP COLLECTION {Header}";
         await _databaseService.ExecuteAsync(dropQuery, CancellationToken.None);
@@ -70,7 +76,9 @@ public partial class DbTreeNode(IDatabaseService databaseService, Action<string>
     [RelayCommand]
     private async Task ExportAsync()
     {
-        if (Tag != "collection") return;
+        if (Tag != "collection") {
+            return;
+        }
 
         var saveFileDialog = new SaveFileDialog
         {
@@ -79,10 +87,12 @@ public partial class DbTreeNode(IDatabaseService databaseService, Action<string>
             FileName = $"{Header}.json"
         };
 
-        if (saveFileDialog.ShowDialog() != true) return;
+        if (saveFileDialog.ShowDialog() != true) {
+            return;
+        }
 
         var selectQuery = $"SELECT $ FROM {Header}";
-        var result = await _databaseService.ExecuteAsync(selectQuery, CancellationToken.None);
+        QueryResult result = await _databaseService.ExecuteAsync(selectQuery, CancellationToken.None);
 
         // Export to JSON
         var json = System.Text.Json.JsonSerializer.Serialize(result.Rows, new System.Text.Json.JsonSerializerOptions { WriteIndented = true });
@@ -93,19 +103,15 @@ public partial class DbTreeNode(IDatabaseService databaseService, Action<string>
     private void InsertSnippet()
     {
         // Support systems collections the same way as regular collections (double-click / insert snippet)
-        if (Tag != "collection" && Tag != "field" && Tag != "system") return;
+        if (Tag != "collection" && Tag != "field" && Tag != "system") {
+            return;
+        }
 
-        string snippet;
-        if (Tag == "collection" || Tag == "system")
-        {
+        var snippet =
             // Use $ as the projection operator for fetching the full document
-            snippet = $"SELECT $ FROM {Header};";
-        }
-        else
-        {
+            Tag is "collection" or "system" ? $"SELECT $ FROM {Header};" :
             // For field, perhaps insert the field name
-            snippet = Header;
-        }
+            Header;
 
         insertSnippetAction?.Invoke(snippet);
     }

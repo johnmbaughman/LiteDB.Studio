@@ -47,9 +47,11 @@ public class SqlCompletionProvider(string text, string? description = null, obje
     /// </summary>
     public void Complete(TextArea textArea, ISegment completionSegment, EventArgs insertionRequestEventArgs)
     {
-        if (textArea == null) throw new ArgumentNullException(nameof(textArea));
+        if (textArea == null) {
+            throw new ArgumentNullException(nameof(textArea));
+        }
 
-        var doc = textArea.Document ?? throw new InvalidOperationException("TextArea has no document");
+        TextDocument doc = textArea.Document ?? throw new InvalidOperationException("TextArea has no document");
         doc.Replace(completionSegment.Offset, completionSegment.Length, Text);
     }
 
@@ -57,13 +59,17 @@ public class SqlCompletionProvider(string text, string? description = null, obje
     /// Helper factory for creating keyword completion entries.
     /// </summary>
     public static SqlCompletionProvider FromKeyword(string keyword)
-        => new(keyword.ToUpperInvariant(), description: $"SQL keyword: {keyword.ToUpperInvariant()}");
+    {
+        return new SqlCompletionProvider(keyword.ToUpperInvariant(), description: $"SQL keyword: {keyword.ToUpperInvariant()}");
+    }
 
     /// <summary>
     /// Helper factory for creating collection name completion entries.
     /// </summary>
     public static SqlCompletionProvider FromCollection(string collectionName)
-        => new(collectionName, description: $"Collection: {collectionName}", tag: "collection");
+    {
+        return new SqlCompletionProvider(collectionName, description: $"Collection: {collectionName}", tag: "collection");
+    }
 
     /// <summary>
     /// Fetches collection names from the database service and returns them as completion items.
@@ -71,9 +77,11 @@ public class SqlCompletionProvider(string text, string? description = null, obje
     public static async Task<IEnumerable<SqlCompletionProvider>>
         GetCollectionCompletionsAsync(IDatabaseService databaseService, CancellationToken cancellationToken = default)
     {
-        if (databaseService == null) throw new ArgumentNullException(nameof(databaseService));
+        if (databaseService == null) {
+            throw new ArgumentNullException(nameof(databaseService));
+        }
 
-        var names = await databaseService.GetCollectionNamesAsync(cancellationToken).ConfigureAwait(false);
+        IEnumerable<string> names = await databaseService.GetCollectionNamesAsync(cancellationToken).ConfigureAwait(false);
 
         return (from n in names where !string.IsNullOrWhiteSpace(n) select FromCollection(n)).ToList();
     }
@@ -106,7 +114,7 @@ public class SqlCompletionProvider(string text, string? description = null, obje
         string[]? keywords = null;
         if (System.IO.File.Exists(path))
         {
-            await using var stream = System.IO.File.OpenRead(path);
+            await using System.IO.FileStream stream = System.IO.File.OpenRead(path);
             keywords = await System.Text.Json.JsonSerializer.DeserializeAsync<string[]>(stream, cancellationToken: cancellationToken).ConfigureAwait(false);
         }
         else if (customProvided)

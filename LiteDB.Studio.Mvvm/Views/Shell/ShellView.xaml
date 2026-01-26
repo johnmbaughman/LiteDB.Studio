@@ -1,0 +1,23 @@
+﻿<Window
+    x:Class="LiteDB.Studio.Mvvm.Views.Shell.ShellView"
+    xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+    xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+    xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
+    xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
+    xmlns:shell="clr-namespace:LiteDB.Studio.Mvvm.ViewModels.Shell"
+    d:DataContext="{d:DesignInstance Type=shell:IShellViewModel}"
+    d:DesignHeight="1024"
+    d:DesignWidth="1280"
+    x:ClassModifier="internal"
+    Closing="ShellView_OnClosing"
+    WindowStartupLocation="CenterScreen"
+    mc:Ignorable="d">
+
+    <Grid>
+        <ContentControl
+            x:Name="MainContent"
+            HorizontalAlignment="Stretch"
+            VerticalAlignment="Stretch"
+            Content="{Binding MainContentView}" />
+    </Grid>
+</Window>

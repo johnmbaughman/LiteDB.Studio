@@ -70,24 +70,18 @@ public partial class TabViewModel : ObservableObject
 
         try
         {
-            string query;
-            if (SelectionLength > 0)
-            {
+            var query =
                 // Execute selection
-                query = EditorText.Substring(SelectionStart, SelectionLength);
-            }
-            else
-            {
+                SelectionLength > 0 ? EditorText.Substring(SelectionStart, SelectionLength) :
                 // Execute entire buffer
-                query = EditorText;
-            }
+                EditorText;
 
-            Serilog.Log.Information("Executing query from Tab '{Title}' (len={Len})", Title, query?.Length ?? 0);
-            var result = await _databaseService.ExecuteAsync(query, CancellationToken.None);
+            Serilog.Log.Information("Executing query from Tab '{Title}' (len={Len})", Title, query.Length);
+            QueryResult result = await _databaseService.ExecuteAsync(query, CancellationToken.None);
             LastResult = result;
             IsResultLoaded = true;
             SelectedResultTabIndex = 0; // show Grid tab when results are available
-            Serilog.Log.Information("Query executed - Rows: {Count}, Columns: {Cols}", result?.RowCount, result?.Columns?.Count);
+            Serilog.Log.Information("Query executed - Rows: {Count}, Columns: {Cols}", result.RowCount, result.Columns.Count);
         }
         catch (Exception ex)
         {
@@ -117,7 +111,7 @@ public partial class TabViewModel : ObservableObject
         var list = new List<CompletionItem>();
         try
         {
-            var cols = await SqlCompletionProvider.GetCollectionCompletionsAsync(_databaseService, cancellationToken);
+            IEnumerable<SqlCompletionProvider> cols = await SqlCompletionProvider.GetCollectionCompletionsAsync(_databaseService, cancellationToken);
             list.AddRange(cols.Select(c => new CompletionItem(c.Text, c.Description?.ToString(), c.Tag)));
         }
         catch

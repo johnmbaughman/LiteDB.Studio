@@ -11,7 +11,9 @@ public static class AppSettingsManager
 
     static AppSettingsManager()
     {
-        if (!Directory.Exists(_settingsFolder)) Directory.CreateDirectory(_settingsFolder);
+        if (!Directory.Exists(_settingsFolder)) {
+            Directory.CreateDirectory(_settingsFolder);
+        }
 
         if (!File.Exists(_settingsFile))
         {
@@ -41,7 +43,10 @@ public static class AppSettingsManager
 
     public static bool IsLastDbExist()
     {
-        if (ApplicationSettings.LastConnectionStrings == null) return false;
+        if (ApplicationSettings.LastConnectionStrings == null) {
+            return false;
+        }
+
         var ldb = ApplicationSettings.LastConnectionStrings.Filename;
         return !string.IsNullOrEmpty(ldb) && File.Exists(ldb);
     }
@@ -53,9 +58,11 @@ public static class AppSettingsManager
 
     public static void AddToRecentList(ConnectionString? connectionString)
     {
-        if (connectionString == null) return;
+        if (connectionString == null) {
+            return;
+        }
 
-        var connection = ApplicationSettings.RecentConnectionStrings.FirstOrDefault(cs => cs.Filename == connectionString.Filename);
+        ConnectionString? connection = ApplicationSettings.RecentConnectionStrings.FirstOrDefault(cs => cs.Filename == connectionString.Filename);
         if (connection != null)
         {
             ApplicationSettings.RecentConnectionStrings.Remove(connection);
@@ -73,13 +80,16 @@ public static class AppSettingsManager
     public static void ValidateRecentList(bool removeOverflowedItems = true)
     {
         var toRemove = ApplicationSettings.RecentConnectionStrings.Where(connectionString => !IsDbExist(connectionString.Filename)).ToList();
-        foreach (var connectionString in toRemove)
+        foreach (ConnectionString connectionString in toRemove)
         {
             ApplicationSettings.RecentConnectionStrings.Remove(connectionString);
         }
 
         var diff = ApplicationSettings.RecentConnectionStrings.Count - ApplicationSettings.MaxRecentListItems;
-        if (diff <= 0) return;
+        if (diff <= 0) {
+            return;
+        }
+
         var startIndex = ApplicationSettings.RecentConnectionStrings.Count - diff;
         ApplicationSettings.RecentConnectionStrings.RemoveRange(startIndex, diff);
         PersistData();

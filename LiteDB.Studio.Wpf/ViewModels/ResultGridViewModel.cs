@@ -21,7 +21,7 @@ public partial class ResultGridViewModel(IDatabaseService databaseService) : Obs
     [ObservableProperty]
     private ObservableCollection<DataGridColumn> _columns = [];
 
-    partial void OnQueryResultChanged(QueryResult? value)
+    private void OnQueryResultChanged()
     {
         UpdateColumns();
     }
@@ -29,11 +29,13 @@ public partial class ResultGridViewModel(IDatabaseService databaseService) : Obs
     private void UpdateColumns()
     {
         Columns.Clear();
-        if (QueryResult?.Columns == null) return;
+        if (QueryResult?.Columns == null) {
+            return;
+        }
 
         var converter = new BsonValueToStringConverter();
 
-        foreach (var column in QueryResult.Columns)
+        foreach (ColumnInfo column in QueryResult.Columns)
         {
             var binding = new Binding($"[{column.Name}]") { Converter = converter };
             var tooltipBinding = new Binding($"[{column.Name}]") { Converter = converter, ConverterParameter = "full" };
@@ -51,11 +53,13 @@ public partial class ResultGridViewModel(IDatabaseService databaseService) : Obs
 
     public async Task UpdateCellValueAsync(object row, string columnName, object newValue, CancellationToken cancellationToken)
     {
-        if (row is not BsonDocument document)
+        if (row is not BsonDocument document) {
             return;
+        }
 
-        if (!document.TryGetValue("_id", out var idValue))
+        if (!document.TryGetValue("_id", out BsonValue? idValue)) {
             return;
+        }
 
         try
         {

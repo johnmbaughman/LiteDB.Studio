@@ -1,36 +1,37 @@
 using System.Windows;
-using System.Windows.Controls;
+using LiteDB.Studio.Mvvm.ViewModels.Shell;
+using LiteDB.Studio.Mvvm.Views.Shell;
 using LiteDB.Studio.Wpf.ViewModels;
 
 namespace LiteDB.Studio.Wpf.Views;
 
-public partial class DatabaseTreeView : UserControl
-{
-    public DatabaseTreeView()
-    {
+// TODO: Implement abstract base class instead of interface.
+public partial class DatabaseTreeView : IShellView {
+    public DatabaseTreeView(IShellViewModel viewModel) {
         InitializeComponent();
+        DataContext = viewModel;
+        Loaded += async (_, _) => await ViewModel.ViewLoaded();
         TreeView.MouseDoubleClick += TreeView_MouseDoubleClick;
     }
 
-    private void TreeView_MouseDoubleClick(object sender, System.Windows.Input.MouseButtonEventArgs e)
-    {
+    private void TreeView_MouseDoubleClick(object sender, System.Windows.Input.MouseButtonEventArgs e) {
         if (TreeView.SelectedItem is not DbTreeNode node) { return; }
 
+        // TODO: move this logic to ViewModel
         // On double-click, open a NEW editor tab and insert the snippet (always create new tab)
-        string snippet;
-        // System collections should behave like regular collections for double-click insertion
-        if (node.Tag == "collection" || node.Tag == "system") snippet = $"SELECT $ FROM {node.Header};";
-        else snippet = node.Header;
+        var snippet =
+            // System collections should behave like regular collections for double-click insertion
+            node.Tag is "collection" or "system" ? $"SELECT $ FROM {node.Header};" : node.Header;
 
         // Try to find MainViewModel via Window DataContext and call AddSqlSnippet to force a new tab insertion
-        if (Application.Current?.MainWindow?.DataContext is MainViewModel vm)
-        {
+        if (Application.Current?.MainWindow?.DataContext is MainViewModel vm) {
             vm.AddSqlSnippet(snippet);
         }
-        else
-        {
+        else {
             // Fallback: invoke the node command which will insert into current tab or create one if empty
             node.InsertSnippetCommand.Execute(null);
         }
     }
+
+    public IShellViewModel ViewModel => (IShellViewModel)DataContext;
 }
