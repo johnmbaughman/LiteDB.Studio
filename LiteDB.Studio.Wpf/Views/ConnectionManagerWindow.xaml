@@ -11,10 +11,6 @@
     <Window.Resources>
         <util:EnumToBooleanConverter x:Key="EnumToBooleanConverter" />
     </Window.Resources>
-    <Window.DataContext>
-        <vm:ConnectionManagerViewModel />
-    </Window.DataContext>
-
     <Canvas>
         <!-- match WinForms absolute placement and sizes -->
         <GroupBox Header="Connection Mode" Width="569" Height="60" Canvas.Left="12" Canvas.Top="11">

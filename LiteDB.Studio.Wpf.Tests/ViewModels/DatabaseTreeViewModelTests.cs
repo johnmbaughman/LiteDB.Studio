@@ -1,93 +1,106 @@
+using System.Threading;
+using System.Threading.Tasks;
+using LiteDB.Studio.Mvvm.ViewModels.Shell;
+using LiteDB.Studio.Mvvm.Views.Shell;
 using LiteDB.Studio.Wpf.Services;
 using LiteDB.Studio.Wpf.ViewModels;
 using NSubstitute;
-using System.Threading;
 using Xunit;
-using System.Threading.Tasks;
 
-namespace LiteDB.Studio.Wpf.Tests.ViewModels
+namespace LiteDB.Studio.Wpf.Tests.ViewModels;
+
+public class DatabaseTreeViewModelTests
 {
-    public class DatabaseTreeViewModelTests
+    public DatabaseTreeViewModelTests()
     {
-        [Fact]
-        public async Task LoadRootNodesAsync_PopulatesRootNodes()
-        {
-            // Arrange
-            var mockService = Substitute.For<IDatabaseService>();
-            mockService.GetCollectionNamesAsync(CancellationToken.None).ReturnsForAnyArgs(["collection1", "collection2"]);
-            mockService.GetSystemCollectionNamesAsync(CancellationToken.None).ReturnsForAnyArgs(["system1", "system2"]);
+        TestAppHostInitializer.EnsureInitialized();
+    }
 
-            var viewModel = new DatabaseTreeViewModel(mockService);
+    [Fact]
+    public async Task LoadRootNodesAsync_PopulatesRootNodes()
+    {
+        // Arrange
+        IDatabaseService? mockService = Substitute.For<IDatabaseService>();
+        mockService.GetCollectionNamesAsync(CancellationToken.None).ReturnsForAnyArgs(["collection1", "collection2"]);
+        mockService.GetSystemCollectionNamesAsync(CancellationToken.None).ReturnsForAnyArgs(["system1", "system2"]);
 
-            // Act
-            await viewModel.LoadRootNodesAsync();
+        var viewModel = new DatabaseTreeViewModel(mockService, CreateShellContentView());
 
-            // Assert
-            Assert.Single(viewModel.RootNodes);
-            var root = viewModel.RootNodes[0];
-            Assert.Equal("Database", root.Header);
-            Assert.Equal("database", root.Tag);
-            Assert.Equal("pack://application:,,,/Resources/Icons/database.png", root.IconUri);
+        // Act
+        await viewModel.LoadRootNodesAsync();
 
-            // Check system node
-            Assert.Equal(3, root.Children.Count); // system folder + 2 collections
-            var systemNode = root.Children[0];
-            Assert.Equal("System", systemNode.Header);
-            Assert.Equal("systemfolder", systemNode.Tag);
-            Assert.Equal("pack://application:,,,/Resources/Icons/system.png", systemNode.IconUri);
-            Assert.Equal(2, systemNode.Children.Count);
-            Assert.Equal("system1", systemNode.Children[0].Header);
-            Assert.Equal("system", systemNode.Children[0].Tag);
-            Assert.Equal("pack://application:,,,/Resources/Icons/system.png", systemNode.Children[0].IconUri);
-            Assert.Equal("system2", systemNode.Children[1].Header);
+        // Assert
+        Assert.Single(viewModel.RootNodes);
+        DbTreeNode root = viewModel.RootNodes[0];
+        Assert.Equal("Database", root.Header);
+        Assert.Equal("database", root.Tag);
+        Assert.Equal("pack://application:,,,/Resources/Icons/database.png", root.IconUri);
 
-            // Check collections
-            var col1 = root.Children[1];
-            Assert.Equal("collection1", col1.Header);
-            Assert.Equal("collection", col1.Tag);
-            Assert.Equal("pack://application:,,,/Resources/Icons/collection.png", col1.IconUri);
+        // Check system node
+        Assert.Equal(3, root.Children.Count); // system folder + 2 collections
+        DbTreeNode systemNode = root.Children[0];
+        Assert.Equal("System", systemNode.Header);
+        Assert.Equal("systemfolder", systemNode.Tag);
+        Assert.Equal("pack://application:,,,/Resources/Icons/system.png", systemNode.IconUri);
+        Assert.Equal(2, systemNode.Children.Count);
+        Assert.Equal("system1", systemNode.Children[0].Header);
+        Assert.Equal("system", systemNode.Children[0].Tag);
+        Assert.Equal("pack://application:,,,/Resources/Icons/system.png", systemNode.Children[0].IconUri);
+        Assert.Equal("system2", systemNode.Children[1].Header);
 
-            var col2 = root.Children[2];
-            Assert.Equal("collection2", col2.Header);
-            Assert.Equal("collection", col2.Tag);
-            Assert.Equal("pack://application:,,,/Resources/Icons/collection.png", col2.IconUri);
+        // Check collections
+        DbTreeNode col1 = root.Children[1];
+        Assert.Equal("collection1", col1.Header);
+        Assert.Equal("collection", col1.Tag);
+        Assert.Equal("pack://application:,,,/Resources/Icons/collection.png", col1.IconUri);
 
-            // Counts and status
-            Assert.Equal(2, viewModel.CollectionsCount);
-            Assert.Equal(2, viewModel.SystemCount);
-            Assert.Equal("Collections: 2 / System: 2", viewModel.StatusText);
-        }
+        DbTreeNode col2 = root.Children[2];
+        Assert.Equal("collection2", col2.Header);
+        Assert.Equal("collection", col2.Tag);
+        Assert.Equal("pack://application:,,,/Resources/Icons/collection.png", col2.IconUri);
 
-        [Fact]
-        public async Task LoadRootNodesAsync_FiltersOutSystemCollectionsFromUserList()
-        {
-            // Arrange
-            var mockService = Substitute.For<IDatabaseService>();
-            mockService.GetCollectionNamesAsync(CancellationToken.None).ReturnsForAnyArgs(["collection1", "system1"]);
-            mockService.GetSystemCollectionNamesAsync(CancellationToken.None).ReturnsForAnyArgs(["system1", "system2"]);
+        // Counts and status
+        Assert.Equal(2, viewModel.CollectionsCount);
+        Assert.Equal(2, viewModel.SystemCount);
+        Assert.Equal("Collections: 2 / System: 2", viewModel.StatusText);
+    }
 
-            var viewModel = new DatabaseTreeViewModel(mockService);
+    [Fact]
+    public async Task LoadRootNodesAsync_FiltersOutSystemCollectionsFromUserList()
+    {
+        // Arrange
+        IDatabaseService? mockService = Substitute.For<IDatabaseService>();
+        mockService.GetCollectionNamesAsync(CancellationToken.None).ReturnsForAnyArgs(["collection1", "system1"]);
+        mockService.GetSystemCollectionNamesAsync(CancellationToken.None).ReturnsForAnyArgs(["system1", "system2"]);
 
-            // Act
-            await viewModel.LoadRootNodesAsync();
+        var viewModel = new DatabaseTreeViewModel(mockService, CreateShellContentView());
 
-            // Assert
-            Assert.Single(viewModel.RootNodes);
-            var root = viewModel.RootNodes[0];
+        // Act
+        await viewModel.LoadRootNodesAsync();
 
-            // system folder + single user collection
-            Assert.Equal(2, root.Children.Count);
-            var systemNode = root.Children[0];
-            Assert.Equal(2, systemNode.Children.Count);
+        // Assert
+        Assert.Single(viewModel.RootNodes);
+        DbTreeNode root = viewModel.RootNodes[0];
 
-            var col = root.Children[1];
-            Assert.Equal("collection1", col.Header);
-            Assert.Equal("collection", col.Tag);
+        // system folder + single user collection
+        Assert.Equal(2, root.Children.Count);
+        DbTreeNode systemNode = root.Children[0];
+        Assert.Equal(2, systemNode.Children.Count);
 
-            // Counts and status
-            Assert.Equal(1, viewModel.CollectionsCount);
-            Assert.Equal(2, viewModel.SystemCount);
-            Assert.Equal("Collections: 1 / System: 2", viewModel.StatusText);
-        }
+        DbTreeNode col = root.Children[1];
+        Assert.Equal("collection1", col.Header);
+        Assert.Equal("collection", col.Tag);
+
+        // Counts and status
+        Assert.Equal(1, viewModel.CollectionsCount);
+        Assert.Equal(2, viewModel.SystemCount);
+        Assert.Equal("Collections: 1 / System: 2", viewModel.StatusText);
+    }
+    private static IShellContentView CreateShellContentView()
+    {
+        IShellContentView? shellContentView = Substitute.For<IShellContentView>();
+        IShellContentViewModel? shellContentViewModel = Substitute.For<IShellContentViewModel>();
+        shellContentView.ShellContentViewModel.Returns(shellContentViewModel);
+        return shellContentView;
     }
 }

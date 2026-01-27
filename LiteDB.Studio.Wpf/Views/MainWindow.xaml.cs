@@ -10,11 +10,21 @@ namespace LiteDB.Studio.Wpf.Views;
 // TODO: Implement abstract base class instead of interface.
 public partial class MainWindow : IShellContentView, IViewFor<MainViewModel>
 {
-    public MainWindow(MainViewModel viewModel)
+    private readonly DatabaseTreeView _databaseTreeView;
+
+    public MainWindow(MainViewModel viewModel, DatabaseTreeView databaseTreeView)
     {
-        InitializeComponent();
         ArgumentNullException.ThrowIfNull(viewModel);
+        ArgumentNullException.ThrowIfNull(databaseTreeView);
+
+        _databaseTreeView = databaseTreeView;
+
+        InitializeComponent();
+
         DataContext = viewModel;
+
+        // Set the DatabaseTreeView's Content property after InitializeComponent
+        DatabaseTreeViewHost.Content = _databaseTreeView;
 
         if (viewModel is IShellContentViewModel shellContentViewModel)
         {
@@ -22,25 +32,6 @@ public partial class MainWindow : IShellContentView, IViewFor<MainViewModel>
         }
 
         Loaded += async (_, _) => await ShellContentViewModel.ViewLoaded();
-
-        //// Use App Host to create ViewModel with the runtime editor adapter
-        //Microsoft.Extensions.Hosting.IHost? host = (Application.Current as App)?.HostInstance;
-
-        //if (host != null)
-        //{
-        //    MainViewModel vm = host.Services.GetRequiredService<MainViewModel>();
-        //    DataContext = vm;
-        //}
-        //else
-        //{
-        //    // Fall back to creating a local service if Host is not available
-        //    var dbService = new LiteDbService();
-        //    DataContext = new MainViewModel(dbService);
-        //}
-
-        //// populate recent list from settings
-        //var vmContext = DataContext as MainViewModel;
-        //vmContext?.Initialize();
     }
 
     private void LoadLastDb_Click(object sender, RoutedEventArgs e)

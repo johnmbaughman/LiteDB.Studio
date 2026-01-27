@@ -27,7 +27,8 @@ public static class HostBuilderExtensions
     /// <returns>The configured <see cref="IHostBuilder"/> instance.</returns>
     public static IHostBuilder ConfigureUi<TV, TVm>(this IHostBuilder hostBuilder)
         where TV : class, IShellContentView
-        where TVm : class, IShellContentViewModel {
+        where TVm : class, IShellContentViewModel
+    {
         ArgumentNullException.ThrowIfNull(hostBuilder);
 
         hostBuilder.ConfigureServices((_, services) => {
@@ -61,42 +62,12 @@ public static class HostBuilderExtensions
     /// Configures Serilog-based logging for the host builder.
     /// Initializes the <see cref="Log.Logger"/> instance from configuration and registers it as a singleton.
     /// </summary>
-    /// <param name="hostBuilder">The <see cref="IHostBuilder"/> to configure.</param>
+    /// <param name="hostBuilder">The host builder to configure.</param>
     /// <returns>The configured <see cref="IHostBuilder"/> instance.</returns>
     public static IHostBuilder ConfigureLogging(this IHostBuilder hostBuilder)
     {
-        hostBuilder.ConfigureLogging((context, logBuilder) =>
+        hostBuilder.ConfigureLogging((_, _) =>
         {
-            // Build logger from configuration first
-            //    var loggerConfig = new LoggerConfiguration().ReadFrom.Configuration(context.Configuration);
-
-            //    // Ensure file sink writes to a temp folder under the user's temp path for easier cleanup.
-            //    try
-            //    {
-            //        var tempDir = Path.Combine(Path.GetTempPath(), "MaiBookmarks");
-            //        Directory.CreateDirectory(tempDir);
-            //        var tempFile = Path.Combine(tempDir, "MaiBookmarks-.log");
-            //        // Add a file sink that rolls daily and uses a consistent template. Adding this here
-            //        // ensures file logs land in the user's temp folder regardless of appsettings.json path.
-            //        loggerConfig = loggerConfig.WriteTo.File(
-            //            path: tempFile,
-            //            rollingInterval: Serilog.RollingInterval.Day,
-            //            outputTemplate: "[{Timestamp:yyyy/MM/dd HH:mm:ss} {Level}] : {SourceContext} : {Message:lj} {NewLine}{Exception}{NewLine}");
-            //    }
-            //    catch
-            //    {
-            //        // Swallow any IO errors configuring the temp folder - logging should not crash the app.
-            //    }
-
-            //    Log.Logger = loggerConfig.CreateLogger();
-            //    logBuilder.AddSerilog(Log.Logger, dispose: true);
-            //    logBuilder.Services.AddLogging();
-            //});
-
-            //return hostBuilder.ConfigureServices((_, services) =>
-            //{
-            //    services.AddSingleton(Log.Logger);
-            //});
             var basePath = AppContext.BaseDirectory;
             IConfigurationBuilder builder = new ConfigurationBuilder()
                 .SetBasePath(basePath)

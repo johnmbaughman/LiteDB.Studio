@@ -6,12 +6,14 @@ using System.Data;
 using System.Globalization;
 using System.Windows;
 using LiteDB.Studio.Mvvm.ViewModels.Shell;
+using Microsoft.Extensions.DependencyInjection;
 
 namespace LiteDB.Studio.Wpf.ViewModels;
 
 public partial class MainViewModel : ShellContentViewModel
 {
     private readonly IDatabaseService _dbService;
+    private readonly IServiceProvider _services;
 
     [ObservableProperty]
     private string _cursorText = string.Empty;
@@ -37,11 +39,12 @@ public partial class MainViewModel : ShellContentViewModel
     public DatabaseTreeViewModel Tree { get; }
     public DataTable CurrentResults { get; } = new();
 
-    public MainViewModel(IDatabaseService dbService)
+    public MainViewModel(IDatabaseService dbService, DatabaseTreeViewModel tree, IServiceProvider services)
     {
         _dbService = dbService ?? throw new ArgumentNullException(nameof(dbService));
+        _services = services ?? throw new ArgumentNullException(nameof(services));
         // TODO: Pick up moving things around here. Need to find a way to connect TreeView events to MainViewModel without tight coupling in MVVM framework.
-        Tree = new DatabaseTreeViewModel(dbService);
+        Tree = tree ?? throw new ArgumentNullException(nameof(tree));
         Tree.InsertSnippetRequested += (_, snippet) => InsertSnippet(snippet);
 
         _dbService.ConnectionStateChanged += OnConnectionStateChanged;
@@ -139,7 +142,7 @@ public partial class MainViewModel : ShellContentViewModel
             return;
         }
         // show connection manager dialog
-        var vm = new ConnectionManagerViewModel();
+        var vm = _services.GetRequiredService<ConnectionManagerViewModel>();
         var win = new Views.ConnectionManagerWindow
         {
             Owner = Application.Current?.MainWindow,

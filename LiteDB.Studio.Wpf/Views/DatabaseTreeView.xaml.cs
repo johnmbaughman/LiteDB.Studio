@@ -1,20 +1,31 @@
 using System.Windows;
-using LiteDB.Studio.Mvvm.ViewModels.Shell;
-using LiteDB.Studio.Mvvm.Views.Shell;
+using LiteDB.Studio.Mvvm.ViewModels;
+using LiteDB.Studio.Mvvm.Views;
 using LiteDB.Studio.Wpf.ViewModels;
 
 namespace LiteDB.Studio.Wpf.Views;
 
 // TODO: Implement abstract base class instead of interface.
-public partial class DatabaseTreeView : IShellView {
-    public DatabaseTreeView(IShellViewModel viewModel) {
+public partial class DatabaseTreeView : IContentView
+{
+    private readonly DatabaseTreeViewModel _viewModel;
+
+    public DatabaseTreeView(DatabaseTreeViewModel viewModel)
+    {
+        ArgumentNullException.ThrowIfNull(viewModel);
+
+        _viewModel = viewModel;
+
         InitializeComponent();
-        DataContext = viewModel;
+
+        DataContext = _viewModel;
+
         Loaded += async (_, _) => await ViewModel.ViewLoaded();
         TreeView.MouseDoubleClick += TreeView_MouseDoubleClick;
     }
 
-    private void TreeView_MouseDoubleClick(object sender, System.Windows.Input.MouseButtonEventArgs e) {
+    private void TreeView_MouseDoubleClick(object sender, System.Windows.Input.MouseButtonEventArgs e)
+    {
         if (TreeView.SelectedItem is not DbTreeNode node) { return; }
 
         // TODO: move this logic to ViewModel
@@ -24,14 +35,16 @@ public partial class DatabaseTreeView : IShellView {
             node.Tag is "collection" or "system" ? $"SELECT $ FROM {node.Header};" : node.Header;
 
         // Try to find MainViewModel via Window DataContext and call AddSqlSnippet to force a new tab insertion
-        if (Application.Current?.MainWindow?.DataContext is MainViewModel vm) {
+        if (Application.Current?.MainWindow?.DataContext is MainViewModel vm)
+        {
             vm.AddSqlSnippet(snippet);
         }
-        else {
+        else
+        {
             // Fallback: invoke the node command which will insert into current tab or create one if empty
             node.InsertSnippetCommand.Execute(null);
         }
     }
 
-    public IShellViewModel ViewModel => (IShellViewModel)DataContext;
+    public IViewModel ViewModel => _viewModel;
 }

@@ -20,6 +20,9 @@ public partial class App : LiteDbStudioApplication
             .ConfigureServices((_, services) =>
             {
                 services.AddSingleton<IDatabaseService, LiteDbService>();
+                services.AddSingleton<DatabaseTreeViewModel>();
+                services.AddSingleton<DatabaseTreeView>();
+                services.AddTransient<ConnectionManagerViewModel>();
             })
             .Build();
     }

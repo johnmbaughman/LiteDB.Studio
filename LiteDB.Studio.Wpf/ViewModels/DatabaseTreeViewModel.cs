@@ -3,18 +3,17 @@ using LiteDB.Studio.Wpf.Services;
 using Serilog;
 using System.Collections.ObjectModel;
 using System.Collections.Specialized;
-using LiteDB.Studio.Mvvm;
-using LiteDB.Studio.Mvvm.ViewModels.Shell;
+using LiteDB.Studio.Mvvm.ViewModels;
 
 namespace LiteDB.Studio.Wpf.ViewModels;
 
-public partial class DatabaseTreeViewModel : ShellViewModel
+public partial class DatabaseTreeViewModel : ViewModel
 {
     private readonly IDatabaseService _databaseService;
 
     public event EventHandler<string>? InsertSnippetRequested;
 
-    public DatabaseTreeViewModel(IDatabaseService databaseService) : base(LiteDbStudioApplication.ShellContentView)
+    public DatabaseTreeViewModel(IDatabaseService databaseService)
     {
         _databaseService = databaseService ?? throw new ArgumentNullException(nameof(databaseService));
         RootNodes = [];
@@ -159,4 +158,6 @@ public partial class DatabaseTreeViewModel : ShellViewModel
             throw;
         }
     }
+
+    public override void RegisterMessengerReceivers() => throw new NotImplementedException();
 }
