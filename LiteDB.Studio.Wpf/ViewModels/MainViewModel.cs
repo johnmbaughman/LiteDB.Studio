@@ -40,6 +40,7 @@ public partial class MainViewModel : ShellContentViewModel
     public MainViewModel(IDatabaseService dbService)
     {
         _dbService = dbService ?? throw new ArgumentNullException(nameof(dbService));
+        // TODO: Pick up moving things around here. Need to find a way to connect TreeView events to MainViewModel without tight coupling in MVVM framework.
         Tree = new DatabaseTreeViewModel(dbService);
         Tree.InsertSnippetRequested += (_, snippet) => InsertSnippet(snippet);
 

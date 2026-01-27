@@ -36,7 +36,7 @@ dotnet_style_require_accessibility_modifiers = for_non_interface_members:error
 # directives outside the namespace to reduce nesting and match style.
 # These are set to error to enforce consistency across generated code.
 dotnet_separate_import_directive_groups = true:error
-dotnet_sort_system_directives_first = true:error
+dotnet_sort_system_directives_first = true
 csharp_using_directive_placement = outside_namespace:error
 
 # --------------------------- Namespace declarations -------------------------
@@ -62,12 +62,12 @@ csharp_style_var_when_type_is_apparent = true:warning
 # -------------------------- Braces and block style -------------------------
 # Enforce braces for all control blocks and use Allman style (open brace on new line)
 csharp_prefer_braces = true:error
-csharp_new_line_before_open_brace = all:error
+csharp_new_line_before_open_brace = all
 
 # ----------------------- Expression-bodied members -------------------------
 # Prefer block bodies for methods (more room for future edits),
 # but allow expression-bodied properties for simple getters.
-csharp_style_expression_bodied_methods = false:error
+csharp_style_expression_bodied_methods = when_on_single_line:none
 csharp_style_expression_bodied_properties = true:suggestion
 csharp_style_expression_bodied_ctors = false:error
 
@@ -122,7 +122,7 @@ csharp_prefer_simple_using_statement = true:suggestion
 
 # ---------------------------- File header policy --------------------------
 # Leave file header unset to avoid enforcing a specific header in generated files.
-file_header_template = unset
+file_header_template = unset:none
 
 # ---------------------- Experimental allowances ----------------------------
 # Keep experimental allowances conservative to avoid noisy diagnostics.

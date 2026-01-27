@@ -1,51 +1,33 @@
 using System.Windows;
+using LiteDB.Studio.Mvvm;
 using LiteDB.Studio.Mvvm.Hosting;
-using Microsoft.Extensions.Hosting;
-using Microsoft.Extensions.DependencyInjection;
-using LiteDB.Studio.Wpf.Util;
+using LiteDB.Studio.Wpf.Services;
 using LiteDB.Studio.Wpf.ViewModels;
 using LiteDB.Studio.Wpf.Views;
+using Microsoft.Extensions.DependencyInjection;
+using Microsoft.Extensions.Hosting;
 using Serilog;
 
 namespace LiteDB.Studio.Wpf;
 
-public partial class App
+public partial class App : LiteDbStudioApplication
 {
-    public IHost? HostInstance { get; private set; }
-
     public App()
     {
-        //try {
-        //    Logging.Configure();
-        AppHost = new HostBuilder()
+        AppHost = Host.CreateDefaultBuilder()
+            .ConfigureLogging()
             .ConfigureUi<MainWindow, MainViewModel>()
+            .ConfigureServices((_, services) =>
+            {
+                services.AddSingleton<IDatabaseService, LiteDbService>();
+            })
             .Build();
+    }
 
-        //    // Add global exception handlers
-        //    DispatcherUnhandledException += App_DispatcherUnhandledException;
-        //    AppDomain.CurrentDomain.UnhandledException += CurrentDomain_UnhandledException;
-
-        //    Log.Information("Application starting");
-
-        //    base.OnStartup(e);
-
-        //    HostInstance = Host.CreateDefaultBuilder()
-        //        .ConfigureServices((_, services) => {
-        //            // Register views here
-        //            services.AddSingleton<Views.MainWindow>();
-
-        //            // Register ViewModels and services here
-        //            services.AddSingleton<ViewModels.MainViewModel>();
-        //            services.AddSingleton<Services.IDatabaseService, Services.LiteDbService>();
-        //            services.AddTransient<ViewModels.ResultGridViewModel>();
-        //        })
-        //        .Build();
-
-        //await HostInstance.StartAsync();
-        //}
-        //catch (Exception ex) {
-        //    Log.Fatal(ex, "Application failed to start: {Message}", ex.Message);
-        //}
+    protected override void OnStartup(StartupEventArgs e)
+    {
+        StartApplication("LiteDB.Studio.Wpf", e);
+        ShowMainWindow();
     }
 
     private static void App_DispatcherUnhandledException(object sender, System.Windows.Threading.DispatcherUnhandledExceptionEventArgs e)
@@ -72,10 +54,10 @@ public partial class App
         {
             Log.Information("Application shutting down");
 
-            if (HostInstance != null)
+            if (AppHost != null)
             {
-                await HostInstance.StopAsync();
-                HostInstance.Dispose();
+                await AppHost.StopAsync();
+                AppHost.Dispose();
             }
 
             base.OnExit(e);

@@ -1,3 +1,4 @@
+using System;
 using System.Windows;
 using System.Windows.Controls;
 using System.Windows.Media;
@@ -33,7 +34,7 @@ public class GrayableImage : Image
         _isUpdating = true;
         try
         {
-            ImageSource newSource = IsEnabled ? _originalSource : _graySource;
+            ImageSource? newSource = IsEnabled ? _originalSource : _graySource;
             if (!ReferenceEquals(Source, newSource))
             {
                 Source = newSource;
@@ -72,7 +73,7 @@ public class GrayableImage : Image
         }
     }
 
-    private static ImageSource CreateGraySource(ImageSource src)
+    private static ImageSource? CreateGraySource(ImageSource? src)
     {
         if (src is not BitmapSource bmp) { return src; }
 

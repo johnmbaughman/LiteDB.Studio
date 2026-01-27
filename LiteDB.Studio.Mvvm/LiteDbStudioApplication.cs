@@ -1,6 +1,7 @@
 using System;
 using System.Windows;
 using LiteDB.Studio.Mvvm.Extensions;
+using LiteDB.Studio.Mvvm.Hosting;
 using LiteDB.Studio.Mvvm.ViewModels.Shell;
 using LiteDB.Studio.Mvvm.Views.Shell;
 using Microsoft.Extensions.DependencyInjection;
@@ -34,6 +35,11 @@ public partial class LiteDbStudioApplication : Application {
     /// </summary>
     /// <value>The services.</value>
     public static IServiceProvider Services => AppHost.Services;
+
+    /// <summary>
+    /// Gets the <see cref="IViewFactory"/> instance for creating views from view-model types.
+    /// </summary>
+    public static IViewFactory ViewFactory => Services.GetRequiredService<IViewFactory>();
 
     /// <summary>
     /// Gets the <see cref="IShellContentViewModel"/> instance from the <see cref="IServiceProvider"/> instance.

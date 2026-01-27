@@ -1,18 +1,26 @@
 using System.Windows;
-using LiteDB.Studio.Mvvm;
+using LiteDB.Studio.Mvvm.ViewModels;
 using LiteDB.Studio.Mvvm.ViewModels.Shell;
+using LiteDB.Studio.Mvvm.Views;
 using LiteDB.Studio.Mvvm.Views.Shell;
 using LiteDB.Studio.Wpf.ViewModels;
 
 namespace LiteDB.Studio.Wpf.Views;
 
 // TODO: Implement abstract base class instead of interface.
-public partial class MainWindow : IShellContentView
+public partial class MainWindow : IShellContentView, IViewFor<MainViewModel>
 {
-    public MainWindow()
+    public MainWindow(MainViewModel viewModel)
     {
         InitializeComponent();
-        DataContext = LiteDbStudioApplication.ShellContentViewModel;
+        ArgumentNullException.ThrowIfNull(viewModel);
+        DataContext = viewModel;
+
+        if (viewModel is IShellContentViewModel shellContentViewModel)
+        {
+            shellContentViewModel.View = this;
+        }
+
         Loaded += async (_, _) => await ShellContentViewModel.ViewLoaded();
 
         //// Use App Host to create ViewModel with the runtime editor adapter
@@ -48,4 +56,8 @@ public partial class MainWindow : IShellContentView
     }
 
     public IShellContentViewModel ShellContentViewModel => (IShellContentViewModel)DataContext;
+
+    public MainViewModel ViewModel => (MainViewModel)DataContext;
+
+    IViewModel IView.ViewModel => ViewModel;
 }
