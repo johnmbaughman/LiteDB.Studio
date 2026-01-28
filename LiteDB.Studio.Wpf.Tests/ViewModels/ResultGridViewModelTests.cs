@@ -12,7 +12,7 @@ public class ResultGridViewModelTests
     public async Task UpdateCellValueAsync_CallsUpdateDocumentFieldAsync_WithCorrectParameters()
     {
         // Arrange
-        IDatabaseService? mockDatabaseService = Substitute.For<LiteDB.Studio.Wpf.Services.IDatabaseService>();
+        IDatabaseService? mockDatabaseService = Substitute.For<IDatabaseService>();
         var viewModel = new LiteDB.Studio.Wpf.ViewModels.ResultGridViewModel(mockDatabaseService)
         {
             CollectionName = "test_collection"

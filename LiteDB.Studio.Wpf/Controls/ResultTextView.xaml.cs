@@ -4,7 +4,7 @@ using System.Windows.Controls;
 
 namespace LiteDB.Studio.Wpf.Controls;
 
-public partial class ResultTextView : UserControl
+public partial class ResultTextView
 {
     public static readonly DependencyProperty QueryResultProperty =
         DependencyProperty.Register(nameof(QueryResult), typeof(QueryResult), typeof(ResultTextView),

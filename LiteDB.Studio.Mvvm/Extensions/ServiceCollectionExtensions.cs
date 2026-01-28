@@ -2,7 +2,7 @@ using Microsoft.Extensions.DependencyInjection;
 
 namespace LiteDB.Studio.Mvvm.Extensions;
 
-public static class ServicesExtensions
+public static class ServiceCollectionExtensions
 {
     /// <summary>
     /// Attempts to retrieve a required service of type <typeparamref name="T"/> from the specified <see cref="IServiceProvider"/>.

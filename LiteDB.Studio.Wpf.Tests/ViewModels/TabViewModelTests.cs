@@ -11,8 +11,8 @@ public class TabViewModelTests
     [Fact]
     public async Task RunCommand_SetsLastResult_WhenQuerySucceeds()
     {
-        IDatabaseService? mock = Substitute.For<Wpf.Services.IDatabaseService>();
-        var expectedResult = new Wpf.Services.QueryResult { RowCount = 1 };
+        IDatabaseService? mock = Substitute.For<IDatabaseService>();
+        var expectedResult = new QueryResult { RowCount = 1 };
         mock.ExecuteAsync(Arg.Any<string>(), Arg.Any<CancellationToken>())
             .Returns(expectedResult);
 
@@ -27,9 +27,9 @@ public class TabViewModelTests
     [Fact]
     public async Task RunCommand_SetsLastError_WhenQueryFails()
     {
-        IDatabaseService? mock = Substitute.For<Wpf.Services.IDatabaseService>();
+        IDatabaseService? mock = Substitute.For<IDatabaseService>();
         mock.ExecuteAsync(Arg.Any<string>(), Arg.Any<CancellationToken>())
-            .Returns(Task.FromException<Wpf.Services.QueryResult>(new System.Exception("Query failed")));
+            .Returns(Task.FromException<QueryResult>(new System.Exception("Query failed")));
 
         var vm = new Wpf.ViewModels.TabViewModel(mock);
 
@@ -42,8 +42,8 @@ public class TabViewModelTests
     [Fact]
     public async Task RunCommand_ExecutesSelection_WhenSelectionExists()
     {
-        IDatabaseService? mock = Substitute.For<Wpf.Services.IDatabaseService>();
-        var expectedResult = new Wpf.Services.QueryResult { RowCount = 1 };
+        IDatabaseService? mock = Substitute.For<IDatabaseService>();
+        var expectedResult = new QueryResult { RowCount = 1 };
         mock.ExecuteAsync(Arg.Is<string>(s => s == "SELECT * FROM users"), Arg.Any<CancellationToken>())
             .Returns(expectedResult);
 
@@ -61,7 +61,7 @@ public class TabViewModelTests
     [Fact]
     public async Task ShowCompletionCommand_PopulatesLastCompletions()
     {
-        IDatabaseService? mock = Substitute.For<Wpf.Services.IDatabaseService>();
+        IDatabaseService? mock = Substitute.For<IDatabaseService>();
         mock.GetCollectionNamesAsync(Arg.Any<CancellationToken>()).Returns(["users", "products"]);
 
         var vm = new Wpf.ViewModels.TabViewModel(mock);

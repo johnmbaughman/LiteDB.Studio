@@ -414,22 +414,6 @@ public partial class MainViewModel : ShellContentViewModel
         }
     }
 
-    private void PopulateSampleResults(string sql)
-    {
-        CurrentResults.Clear();
-        CurrentResults.Columns.Clear();
-        CurrentResults.Columns.Add("Id");
-        CurrentResults.Columns.Add("Content");
-
-        for (var i = 0; i < 10; i++)
-        {
-            DataRow row = CurrentResults.NewRow();
-            row[0] = i;
-            row[1] = sql + " - row " + i;
-            CurrentResults.Rows.Add(row);
-        }
-    }
-
     private static string BuildConnectionString(ConnectionString cs)
     {
         var parts = new List<string>();

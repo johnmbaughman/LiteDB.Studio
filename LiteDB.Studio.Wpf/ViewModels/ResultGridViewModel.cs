@@ -21,10 +21,10 @@ public partial class ResultGridViewModel(IDatabaseService databaseService) : Obs
     [ObservableProperty]
     private ObservableCollection<DataGridColumn> _columns = [];
 
-    private void OnQueryResultChanged()
-    {
-        UpdateColumns();
-    }
+    //private void OnQueryResultChanged()
+    //{
+    //    UpdateColumns();
+    //}
 
     private void UpdateColumns()
     {

@@ -10,7 +10,6 @@ namespace LiteDB.Studio.Wpf.Views;
 public partial class MainWindow : IShellContentView, IView
 {
     private readonly MainViewModel _viewModel;
-    private readonly DatabaseTreeView _databaseTreeView;
 
     public MainWindow(MainViewModel viewModel, DatabaseTreeView databaseTreeView)
     {
@@ -18,14 +17,13 @@ public partial class MainWindow : IShellContentView, IView
         ArgumentNullException.ThrowIfNull(databaseTreeView);
 
         _viewModel = viewModel;
-        _databaseTreeView = databaseTreeView;
 
         InitializeComponent();
 
         DataContext = _viewModel;
 
         // Set the DatabaseTreeView's Content property after InitializeComponent
-        DatabaseTreeViewHost.Content = _databaseTreeView;
+        DatabaseTreeViewHost.Content = databaseTreeView;
 
         if (_viewModel is IShellContentViewModel shellContentViewModel)
         {

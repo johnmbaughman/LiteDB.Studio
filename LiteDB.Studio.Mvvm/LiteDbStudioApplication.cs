@@ -1,8 +1,5 @@
-using System;
 using System.Windows;
 using LiteDB.Studio.Mvvm.Extensions;
-using LiteDB.Studio.Mvvm.Hosting;
-using LiteDB.Studio.Mvvm.ViewModels.Shell;
 using LiteDB.Studio.Mvvm.Views.Shell;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
@@ -10,7 +7,7 @@ using Serilog;
 
 namespace LiteDB.Studio.Mvvm;
 
-public partial class LiteDbStudioApplication : Application {
+public class LiteDbStudioApplication : Application {
     /// <summary>
     /// The <see cref="IHost"/> instance for the application. All configurable items are contained here during startup.
     /// </summary>
@@ -35,17 +32,6 @@ public partial class LiteDbStudioApplication : Application {
     /// </summary>
     /// <value>The services.</value>
     public static IServiceProvider Services => AppHost.Services;
-
-    /// <summary>
-    /// Gets the <see cref="IViewFactory"/> instance for creating views from view-model types.
-    /// </summary>
-    public static IViewFactory ViewFactory => Services.GetRequiredService<IViewFactory>();
-
-    /// <summary>
-    /// Gets the <see cref="IShellContentViewModel"/> instance from the <see cref="IServiceProvider"/> instance.
-    /// </summary>
-    public static IShellContentViewModel ShellContentViewModel => Services.GetRequiredService<IShellContentViewModel>();
-    public static IShellContentView ShellContentView => Services.GetRequiredService<IShellContentView>();
 
     /// <summary>
     /// Displays the main <see cref="IShellView"/>, <see cref="Window"/>-based window.

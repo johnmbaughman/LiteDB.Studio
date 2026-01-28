@@ -125,7 +125,7 @@ public class AvalonEditBehaviorsTests
             Dispatcher.CurrentDispatcher.Invoke(DispatcherPriority.Background, new Action(() => { }));
 
             // Ensure a KeyBinding for Ctrl+Space exists
-            KeyBinding? kb = editor.InputBindings.OfType<System.Windows.Input.KeyBinding>().FirstOrDefault(k => k is { Key: System.Windows.Input.Key.Space, Modifiers: System.Windows.Input.ModifierKeys.Control });
+            KeyBinding? kb = editor.InputBindings.OfType<KeyBinding>().FirstOrDefault(k => k is { Key: Key.Space, Modifiers: ModifierKeys.Control });
             Assert.NotNull(kb);
 
             // Execute the bound command to simulate the input trigger
@@ -134,7 +134,7 @@ public class AvalonEditBehaviorsTests
         });
     }
 
-    private class TestCommand(Action action) : System.Windows.Input.ICommand
+    private class TestCommand(Action action) : ICommand
     {
         public event EventHandler? CanExecuteChanged;
         public bool CanExecute(object? parameter) => true;

@@ -20,11 +20,11 @@ public class MainViewModelTests
     [Fact]
     public Task ConnectCommand_SetsIsConnected()
     {
-        IDatabaseService? mockDbService = Substitute.For<LiteDB.Studio.Wpf.Services.IDatabaseService>();
+        IDatabaseService? mockDbService = Substitute.For<IDatabaseService>();
         mockDbService.ConnectAsync(Arg.Any<string>(), Arg.Any<CancellationToken>())
             .Returns(Task.CompletedTask);
 
-        var vm = new LiteDB.Studio.Wpf.ViewModels.MainViewModel(
+        var vm = new MainViewModel(
             mockDbService,
             CreateTreeViewModel(mockDbService),
             Substitute.For<IServiceProvider>()) {
@@ -40,13 +40,13 @@ public class MainViewModelTests
     [Fact]
     public void RunCommand_DelegatesToSelectedTab()
     {
-        IDatabaseService? mockDbService = Substitute.For<LiteDB.Studio.Wpf.Services.IDatabaseService>();
-        var vm = new LiteDB.Studio.Wpf.ViewModels.MainViewModel(
+        IDatabaseService? mockDbService = Substitute.For<IDatabaseService>();
+        var vm = new MainViewModel(
             mockDbService,
             CreateTreeViewModel(mockDbService),
             Substitute.For<IServiceProvider>());
 
-        TabViewModel? mockTab = Substitute.For<LiteDB.Studio.Wpf.ViewModels.TabViewModel>(mockDbService);
+        TabViewModel? mockTab = Substitute.For<TabViewModel>(mockDbService);
         vm.Tabs.Add(mockTab);
         vm.SelectedTab = mockTab;
 
@@ -59,8 +59,8 @@ public class MainViewModelTests
     [Fact]
     public void ConnectionAddsNewTabWhenNoUserTabsExist()
     {
-        IDatabaseService? mockDbService = Substitute.For<LiteDB.Studio.Wpf.Services.IDatabaseService>();
-        var vm = new LiteDB.Studio.Wpf.ViewModels.MainViewModel(
+        IDatabaseService? mockDbService = Substitute.For<IDatabaseService>();
+        var vm = new MainViewModel(
             mockDbService,
             CreateTreeViewModel(mockDbService),
             Substitute.For<IServiceProvider>());
@@ -70,7 +70,7 @@ public class MainViewModelTests
         Assert.Equal("+", vm.Tabs[0].Title);
 
         // Fire connection event
-        mockDbService.ConnectionStateChanged += Raise.EventWith(new LiteDB.Studio.Wpf.Services.ConnectionStateChangedEventArgs(true));
+        mockDbService.ConnectionStateChanged += Raise.EventWith(new ConnectionStateChangedEventArgs(true));
 
         // Now expect a new user tab to be added and selected
         Assert.True(vm.Tabs.Count >= 2);
@@ -80,13 +80,13 @@ public class MainViewModelTests
     [Fact]
     public void RunCommand_ExecutesSelection_WhenSelectionExists()
     {
-        IDatabaseService? mockDbService = Substitute.For<LiteDB.Studio.Wpf.Services.IDatabaseService>();
-        var vm = new LiteDB.Studio.Wpf.ViewModels.MainViewModel(
+        IDatabaseService? mockDbService = Substitute.For<IDatabaseService>();
+        var vm = new MainViewModel(
             mockDbService,
             CreateTreeViewModel(mockDbService),
             Substitute.For<IServiceProvider>());
 
-        TabViewModel? mockTab = Substitute.For<LiteDB.Studio.Wpf.ViewModels.TabViewModel>(mockDbService);
+        TabViewModel? mockTab = Substitute.For<TabViewModel>(mockDbService);
         mockTab.EditorText = "SELECT * FROM users; SELECT * FROM products;";
         mockTab.SelectionStart = 0;
         mockTab.SelectionLength = 19; // Length of "SELECT * FROM users;"
@@ -99,9 +99,9 @@ public class MainViewModelTests
         // Assume the selection is handled correctly
         Assert.Equal(19, mockTab.SelectionLength);
     }
-    private static LiteDB.Studio.Wpf.ViewModels.DatabaseTreeViewModel CreateTreeViewModel(
-        LiteDB.Studio.Wpf.Services.IDatabaseService databaseService)
+    private static DatabaseTreeViewModel CreateTreeViewModel(
+        IDatabaseService databaseService)
     {
-        return new LiteDB.Studio.Wpf.ViewModels.DatabaseTreeViewModel(databaseService);
+        return new DatabaseTreeViewModel(databaseService);
     }
 }
