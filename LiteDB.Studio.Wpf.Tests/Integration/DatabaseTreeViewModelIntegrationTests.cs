@@ -1,11 +1,8 @@
 using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
-using LiteDB.Studio.Mvvm.ViewModels.Shell;
-using LiteDB.Studio.Mvvm.Views.Shell;
 using LiteDB.Studio.Wpf.Services;
 using LiteDB.Studio.Wpf.ViewModels;
-using NSubstitute;
 using Xunit;
 
 namespace LiteDB.Studio.Wpf.Tests.Integration;
@@ -28,7 +25,7 @@ public class DatabaseTreeViewModelIntegrationTests
         // create a test collection
         await service.ExecuteAsync("INSERT INTO test_collection VALUES { name: 'a' }", cts.Token);
 
-        var vm = new DatabaseTreeViewModel(service, CreateShellContentView());
+        var vm = new DatabaseTreeViewModel(service);
 
         // Act
         await vm.LoadRootNodesAsync(cts.Token);
@@ -40,12 +37,5 @@ public class DatabaseTreeViewModelIntegrationTests
         // root should contain a System folder and our collection
         Assert.Contains("System", root.Children.Select(c => c.Header));
         Assert.Contains("test_collection", root.Children.Select(c => c.Header));
-    }
-    private static IShellContentView CreateShellContentView()
-    {
-        IShellContentView? shellContentView = Substitute.For<IShellContentView>();
-        IShellContentViewModel? shellContentViewModel = Substitute.For<IShellContentViewModel>();
-        shellContentView.ShellContentViewModel.Returns(shellContentViewModel);
-        return shellContentView;
     }
 }

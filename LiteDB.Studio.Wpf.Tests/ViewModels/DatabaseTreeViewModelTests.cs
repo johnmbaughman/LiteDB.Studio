@@ -1,7 +1,5 @@
 using System.Threading;
 using System.Threading.Tasks;
-using LiteDB.Studio.Mvvm.ViewModels.Shell;
-using LiteDB.Studio.Mvvm.Views.Shell;
 using LiteDB.Studio.Wpf.Services;
 using LiteDB.Studio.Wpf.ViewModels;
 using NSubstitute;
@@ -24,7 +22,7 @@ public class DatabaseTreeViewModelTests
         mockService.GetCollectionNamesAsync(CancellationToken.None).ReturnsForAnyArgs(["collection1", "collection2"]);
         mockService.GetSystemCollectionNamesAsync(CancellationToken.None).ReturnsForAnyArgs(["system1", "system2"]);
 
-        var viewModel = new DatabaseTreeViewModel(mockService, CreateShellContentView());
+        var viewModel = new DatabaseTreeViewModel(mockService);
 
         // Act
         await viewModel.LoadRootNodesAsync();
@@ -73,7 +71,7 @@ public class DatabaseTreeViewModelTests
         mockService.GetCollectionNamesAsync(CancellationToken.None).ReturnsForAnyArgs(["collection1", "system1"]);
         mockService.GetSystemCollectionNamesAsync(CancellationToken.None).ReturnsForAnyArgs(["system1", "system2"]);
 
-        var viewModel = new DatabaseTreeViewModel(mockService, CreateShellContentView());
+        var viewModel = new DatabaseTreeViewModel(mockService);
 
         // Act
         await viewModel.LoadRootNodesAsync();
@@ -95,12 +93,5 @@ public class DatabaseTreeViewModelTests
         Assert.Equal(1, viewModel.CollectionsCount);
         Assert.Equal(2, viewModel.SystemCount);
         Assert.Equal("Collections: 1 / System: 2", viewModel.StatusText);
-    }
-    private static IShellContentView CreateShellContentView()
-    {
-        IShellContentView? shellContentView = Substitute.For<IShellContentView>();
-        IShellContentViewModel? shellContentViewModel = Substitute.For<IShellContentViewModel>();
-        shellContentView.ShellContentViewModel.Returns(shellContentViewModel);
-        return shellContentView;
     }
 }

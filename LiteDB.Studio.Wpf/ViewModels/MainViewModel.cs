@@ -141,18 +141,18 @@ public partial class MainViewModel : ShellContentViewModel
             CursorText = "Disconnected";
             return;
         }
-        // show connection manager dialog
-        var vm = _services.GetRequiredService<ConnectionManagerViewModel>();
-        var win = new Views.ConnectionManagerWindow
-        {
-            Owner = Application.Current?.MainWindow,
-            DataContext = vm
-        };
+
+        // Resolve connection dialog from DI (includes ViewModel)
+        Views.ConnectionManagerWindow win = _services.GetRequiredService<Views.ConnectionManagerWindow>();
+        win.Owner = Application.Current?.MainWindow;
 
         var shown = win.ShowDialog();
         if (shown != true) {
             return;
         }
+
+        // Get ViewModel from window's DataContext
+        var vm = (ConnectionManagerViewModel)win.DataContext;
 
         var filename = vm.Filename;
         if (string.IsNullOrEmpty(filename)) {

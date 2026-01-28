@@ -23,6 +23,7 @@ public partial class App : LiteDbStudioApplication
                 services.AddSingleton<DatabaseTreeViewModel>();
                 services.AddSingleton<DatabaseTreeView>();
                 services.AddTransient<ConnectionManagerViewModel>();
+                services.AddTransient<ConnectionManagerWindow>();
             })
             .Build();
     }

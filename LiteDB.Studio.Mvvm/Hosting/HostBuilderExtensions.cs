@@ -39,20 +39,17 @@ public static class HostBuilderExtensions
                 throw new AmbiguousImplementationException(Resources.UiAlreadyInitialzed);
             }
 
-            services.AddViewFactory();
-
+            // Register Shell services
             services.AddSingleton<ShellView>();
             services.AddSingleton<IShellView, ShellView>();
             services.AddSingleton<ShellViewModel>();
             services.AddSingleton<IShellViewModel, ShellViewModel>();
 
+            // Register content services
             services.AddSingleton<TV>();
             services.AddSingleton<IShellContentView, TV>();
             services.AddSingleton<TVm>();
             services.AddSingleton<IShellContentViewModel, TVm>();
-
-            services.AddSingleton(new ViewRegistration(typeof(ShellView), typeof(IShellViewModel)));
-            services.AddSingleton(new ViewRegistration(typeof(TV), typeof(IShellContentViewModel)));
         });
 
         return hostBuilder;

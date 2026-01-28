@@ -102,10 +102,6 @@ public class MainViewModelTests
     private static LiteDB.Studio.Wpf.ViewModels.DatabaseTreeViewModel CreateTreeViewModel(
         LiteDB.Studio.Wpf.Services.IDatabaseService databaseService)
     {
-        IShellContentView? shellContentView = Substitute.For<IShellContentView>();
-        IShellContentViewModel? shellContentViewModel = Substitute.For<IShellContentViewModel>();
-        shellContentView.ShellContentViewModel.Returns(shellContentViewModel);
-
-        return new LiteDB.Studio.Wpf.ViewModels.DatabaseTreeViewModel(databaseService, shellContentView);
+        return new LiteDB.Studio.Wpf.ViewModels.DatabaseTreeViewModel(databaseService);
     }
 }

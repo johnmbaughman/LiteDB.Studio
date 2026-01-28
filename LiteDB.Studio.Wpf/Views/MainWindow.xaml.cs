@@ -7,9 +7,9 @@ using LiteDB.Studio.Wpf.ViewModels;
 
 namespace LiteDB.Studio.Wpf.Views;
 
-// TODO: Implement abstract base class instead of interface.
-public partial class MainWindow : IShellContentView, IViewFor<MainViewModel>
+public partial class MainWindow : IShellContentView, IView
 {
+    private readonly MainViewModel _viewModel;
     private readonly DatabaseTreeView _databaseTreeView;
 
     public MainWindow(MainViewModel viewModel, DatabaseTreeView databaseTreeView)
@@ -17,16 +17,17 @@ public partial class MainWindow : IShellContentView, IViewFor<MainViewModel>
         ArgumentNullException.ThrowIfNull(viewModel);
         ArgumentNullException.ThrowIfNull(databaseTreeView);
 
+        _viewModel = viewModel;
         _databaseTreeView = databaseTreeView;
 
         InitializeComponent();
 
-        DataContext = viewModel;
+        DataContext = _viewModel;
 
         // Set the DatabaseTreeView's Content property after InitializeComponent
         DatabaseTreeViewHost.Content = _databaseTreeView;
 
-        if (viewModel is IShellContentViewModel shellContentViewModel)
+        if (_viewModel is IShellContentViewModel shellContentViewModel)
         {
             shellContentViewModel.View = this;
         }
@@ -36,19 +37,15 @@ public partial class MainWindow : IShellContentView, IViewFor<MainViewModel>
 
     private void LoadLastDb_Click(object sender, RoutedEventArgs e)
     {
-        var vm = DataContext as MainViewModel;
-
         var last = Util.AppSettingsManager.ApplicationSettings.LastConnectionStrings?.Filename;
 
-        if (!string.IsNullOrEmpty(last) && vm != null)
+        if (!string.IsNullOrEmpty(last))
         {
-            _ = vm.OpenRecentAsync(last);
+            _ = _viewModel.OpenRecentAsync(last);
         }
     }
 
-    public IShellContentViewModel ShellContentViewModel => (IShellContentViewModel)DataContext;
+    public IShellContentViewModel ShellContentViewModel => _viewModel;
 
-    public MainViewModel ViewModel => (MainViewModel)DataContext;
-
-    IViewModel IView.ViewModel => ViewModel;
+    public IViewModel ViewModel => _viewModel;
 }
