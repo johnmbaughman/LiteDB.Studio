@@ -1,5 +1,7 @@
-using System.Diagnostics;
+using System.ComponentModel;
+using System.Windows;
 using CommunityToolkit.Mvvm.ComponentModel;
+using LiteDB.Studio.Mvvm.ViewModels.Shell;
 using Serilog;
 
 namespace LiteDB.Studio.Mvvm.ViewModels;
@@ -62,7 +64,7 @@ public abstract partial class ViewModel : ObservableObject, IViewModel {
     /// <summary>
     /// Gets a value indicating whether the application is running in design mode (e.g., in Visual Studio designer).
     /// </summary>
-    public bool InDesignMode => Debugger.IsAttached;
+    public bool InDesignMode => DesignerProperties.GetIsInDesignMode(new DependencyObject());
 
     /// <summary>
     /// Gets the logger instance for this view model.
@@ -71,8 +73,8 @@ public abstract partial class ViewModel : ObservableObject, IViewModel {
 
     /// <summary>
     /// Registers messenger receivers for inter-view model communication.
-    /// Called by <see cref="ShellViewModel"/> during construction.
-    /// <b>IMPORTANT:</b> Handlers should process minimal data; major data processing should be completed elsewhere.
+    /// Invoked by <see cref="ShellViewModel"/> from <see cref="ViewLoaded"/> after the shell assigns itself.
+    /// Keep handlers lightweight and avoid long-running work on the UI thread.
     /// </summary>
     public abstract void RegisterMessengerReceivers();
 

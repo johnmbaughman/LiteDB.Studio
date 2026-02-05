@@ -34,7 +34,7 @@ public partial class DbTreeNode(
     private bool _isExpanded;
 
     [RelayCommand]
-    private async Task LoadChildrenAsync()
+    private async Task LoadChildrenAsync(CancellationToken cancellationToken)
     {
         if (IsLoaded) {
             return;
@@ -44,9 +44,10 @@ public partial class DbTreeNode(
 
         if (Tag == "collection")
         {
-            IEnumerable<ColumnInfo> schema = await _databaseService.GetCollectionSchemaAsync(Header, CancellationToken.None);
+            IEnumerable<ColumnInfo> schema = await _databaseService.GetCollectionSchemaAsync(Header, cancellationToken);
             foreach (ColumnInfo column in schema)
             {
+                cancellationToken.ThrowIfCancellationRequested();
                 var childNode = new DbTreeNode(_databaseService, _dialogService, _fileDialogService, _fileService)
                 {
                     Header = column.Name,
@@ -61,7 +62,7 @@ public partial class DbTreeNode(
     }
 
     [RelayCommand]
-    private async Task DropAsync()
+    private async Task DropAsync(CancellationToken cancellationToken)
     {
         if (Tag != "collection") {
             return;
@@ -74,13 +75,13 @@ public partial class DbTreeNode(
         }
 
         var dropQuery = $"DROP COLLECTION {Header}";
-        await _databaseService.ExecuteAsync(dropQuery, CancellationToken.None);
+        await _databaseService.ExecuteAsync(dropQuery, cancellationToken);
 
         // Note: In a full implementation, the tree should be refreshed after drop
     }
 
     [RelayCommand]
-    private async Task ExportAsync()
+    private async Task ExportAsync(CancellationToken cancellationToken)
     {
         if (Tag != "collection") {
             return;
@@ -98,11 +99,11 @@ public partial class DbTreeNode(
         }
 
         var selectQuery = $"SELECT $ FROM {Header}";
-        QueryResult result = await _databaseService.ExecuteAsync(selectQuery, CancellationToken.None);
+        QueryResult result = await _databaseService.ExecuteAsync(selectQuery, cancellationToken);
 
         // Export to JSON
         var json = System.Text.Json.JsonSerializer.Serialize(result.Rows, new System.Text.Json.JsonSerializerOptions { WriteIndented = true });
-        await _fileService.WriteAllTextAsync(filename, json);
+        await _fileService.WriteAllTextAsync(filename, json, cancellationToken);
     }
 
     [RelayCommand]

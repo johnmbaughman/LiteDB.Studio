@@ -52,9 +52,9 @@ public partial class ResultGrid
         viewModel.Columns.CollectionChanged += (_, _) => UpdateColumnsFromViewModel(viewModel);
 
         // Also track QueryResult changes to refresh rows
-        viewModel.PropertyChanged += (_, e) =>
+        viewModel.PropertyChanged += (_, args) =>
         {
-            if (e.PropertyName == nameof(ResultGridViewModel.QueryResult))
+            if (args.PropertyName == nameof(ResultGridViewModel.QueryResult))
             {
                 ResultsDataGrid.ItemsSource = viewModel.QueryResult?.Rows;
             }
@@ -66,9 +66,9 @@ public partial class ResultGrid
         ResultsDataGrid.Columns.Clear();
         _columnNames.Clear();
 
-        var converter = new LiteDB.Studio.Wpf.Util.BsonValueToStringConverter();
+        var converter = new Util.BsonValueToStringConverter();
 
-        foreach (var desc in viewModel.Columns)
+        foreach (ColumnDescriptor desc in viewModel.Columns)
         {
             var binding = new Binding($"[{desc.Name}]") { Converter = converter };
             var tooltipBinding = new Binding($"[{desc.Name}]") { Converter = converter, ConverterParameter = "full" };
@@ -80,7 +80,7 @@ public partial class ResultGrid
             };
 
             var style = new Style(typeof(TextBlock));
-            style.Setters.Add(new Setter(FrameworkElement.ToolTipProperty, tooltipBinding));
+            style.Setters.Add(new Setter(ToolTipProperty, tooltipBinding));
             // Slightly larger padding for improved readability
             style.Setters.Add(new Setter(TextBlock.PaddingProperty, new Thickness(3,3,3,3)));
             // Ensure long text is trimmed with an ellipsis when cell width is constrained
@@ -334,9 +334,6 @@ public partial class ResultGrid
     // Temporarily store the index of the row that was last clicked by the user so SelectionChanged can prefer it.
     private int? _lastClickedIndexOverride;
     private readonly Dictionary<DataGridColumn, string> _columnNames = new();
-    
-    // Map to track the descriptor -> created data grid column if needed in future
-    private readonly Dictionary<ColumnDescriptor, DataGridColumn> _descriptorColumns = new();
 
     private void ResultsDataGrid_RowHeaderMouseLeftButtonDown(object? sender, MouseButtonEventArgs e)
     {
@@ -531,7 +528,7 @@ public partial class ResultGrid
             try
             {
                 col.Width = new DataGridLength(1, DataGridLengthUnitType.SizeToCells);
-            } 
+            }
             catch (Exception ex)
             {
                 Log.Error(ex, "Exception occurred while setting column width to SizeToCells: {Message}", ex.Message);

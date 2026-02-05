@@ -32,9 +32,9 @@ public partial class MainViewModel : ShellContentViewModel
     private bool _transactionActive;
 
     private bool _loadLastDatabaseOnStartup;
-    private TabViewModel? _selectedTab;
+    private readonly TabManager _tabManager;
 
-    public ObservableCollection<TabViewModel> Tabs { get; } = [];
+    public ObservableCollection<TabViewModel> Tabs => _tabManager.Tabs;
     public ObservableCollection<string> RecentDatabases { get; } = [];
 
     public DatabaseTreeViewModel Tree { get; }
@@ -53,7 +53,18 @@ public partial class MainViewModel : ShellContentViewModel
         _appSettingsService = appSettingsService ?? throw new ArgumentNullException(nameof(appSettingsService));
         // TODO: Pick up moving things around here. Need to find a way to connect TreeView events to MainViewModel without tight coupling in MVVM framework.
         Tree = tree ?? throw new ArgumentNullException(nameof(tree));
-        Tree.InsertSnippetRequested += (_, snippet) => InsertSnippet(snippet);
+
+        _tabManager = new TabManager(_dbService);
+        _tabManager.PropertyChanged += (_, e) =>
+        {
+            if (e.PropertyName == nameof(TabManager.SelectedTab))
+            {
+                OnPropertyChanged(nameof(SelectedTab));
+            }
+        };
+
+        Tree.InsertSnippetRequested += (_, snippet) => _tabManager.InsertSnippet(snippet);
+        Tree.AddSqlSnippetRequested += (_, snippet) => _tabManager.AddSqlSnippet(snippet);
 
         _dbService.ConnectionStateChanged += OnConnectionStateChanged;
         _dbService.TransactionStateChanged += OnTransactionStateChanged;
@@ -61,23 +72,21 @@ public partial class MainViewModel : ShellContentViewModel
         ConnectCommand = new AsyncRelayCommand(ConnectAsync);
         DisconnectCommand = new RelayCommand(Disconnect);
         RunCommand = new RelayCommand(Run);
-        NewTabCommand = new RelayCommand(AddNewTab);
-        CloseTabCommand = new RelayCommand<TabViewModel>(CloseTab);
+        NewTabCommand = new RelayCommand(() => _tabManager.AddNewTab());
+        CloseTabCommand = new RelayCommand<TabViewModel>(_tabManager.CloseTab);
         OpenRecentCommand = new AsyncRelayCommand<object>(OpenRecentAsync);
         OpenRecentWrapperCommand = new RelayCommand<object>(p =>
         {
             // ensure we only forward string parameters to the async handler
             if (p is string s && !string.IsNullOrEmpty(s)) {
-                _ = OpenRecentAsync(s);
+                _ = OpenRecentAsync(s, CancellationToken.None);
             }
         });
         ClearRecentCommand = new RelayCommand(ClearRecentList);
         ValidateRecentCommand = new RelayCommand(ValidateRecentList);
         RefreshTreeCommand = new AsyncRelayCommand(RefreshTreeAsync);
-        InsertSnippetCommand = new RelayCommand<string>(InsertSnippet);
-
-        // create initial + tab
-        Tabs.Add(new TabViewModel(_dbService) { Title = "+", IsPlus = true });
+        InsertSnippetCommand = new RelayCommand<string>(snippet => _tabManager.InsertSnippet(snippet));
+        LoadLastDatabaseCommand = new RelayCommand(LoadLastDatabase);
     }
 
     public void Initialize()
@@ -94,7 +103,7 @@ public partial class MainViewModel : ShellContentViewModel
         var last = _appSettingsService.ApplicationSettings.LastConnectionStrings?.Filename;
         if (!string.IsNullOrEmpty(last))
         {
-            _ = OpenRecentAsync(last);
+            _ = OpenRecentAsync(last, CancellationToken.None);
         }
     }
 
@@ -126,22 +135,12 @@ public partial class MainViewModel : ShellContentViewModel
     public IRelayCommand ValidateRecentCommand { get; }
     public IAsyncRelayCommand RefreshTreeCommand { get; }
     public IRelayCommand<string> InsertSnippetCommand { get; }
+    public IRelayCommand LoadLastDatabaseCommand { get; }
 
     public TabViewModel? SelectedTab
     {
-        get => _selectedTab;
-        set
-        {
-            if (!SetProperty(ref _selectedTab, value))
-            {
-                return;
-            }
-
-            if (_selectedTab is { Title: "+" })
-            {
-                AddNewTab();
-            }
-        }
+        get => _tabManager.SelectedTab;
+        set => _tabManager.SelectedTab = value;
     }
 
     public bool LoadLastDatabaseOnStartup
@@ -156,7 +155,7 @@ public partial class MainViewModel : ShellContentViewModel
         }
     }
 
-    private async Task ConnectAsync()
+    private async Task ConnectAsync(CancellationToken cancellationToken)
     {
         // If already connected, perform disconnect instead (toggle behavior)
         if (_dbService.IsConnected)
@@ -167,7 +166,7 @@ public partial class MainViewModel : ShellContentViewModel
             return;
         }
 
-        var dialogResult = _connectionDialogService.ShowDialog();
+        ConnectionManagerDialogResult? dialogResult = _connectionDialogService.ShowDialog();
         if (dialogResult == null)
         {
             return;
@@ -178,108 +177,45 @@ public partial class MainViewModel : ShellContentViewModel
             return;
         }
 
-        var cs = new ConnectionString(filename);
-
-        // map ConnectionManagerViewModel -> ConnectionString (same logic as WinForms ConnectionForm)
-        try
+        var cs = new ConnectionString(filename)
         {
-            cs.Connection = dialogResult.Mode == ConnectionMode.Direct ? ConnectionType.Direct : ConnectionType.Shared;
+            // map ConnectionManagerViewModel -> ConnectionString (same logic as WinForms ConnectionForm)
+            Connection = dialogResult.Mode == ConnectionMode.Direct ? ConnectionType.Direct : ConnectionType.Shared,
+            Filename = dialogResult.Filename,
+            ReadOnly = dialogResult.ReadOnly,
+            Upgrade = dialogResult.UpgradeFromV4,
+            Password = !string.IsNullOrWhiteSpace(dialogResult.Password) ? dialogResult.Password.Trim() : null
+        };
 
-            cs.Filename = dialogResult.Filename;
-            cs.ReadOnly = dialogResult.ReadOnly;
-            cs.Upgrade = dialogResult.UpgradeFromV4;
-
-            cs.Password = !string.IsNullOrWhiteSpace(dialogResult.Password) ? dialogResult.Password.Trim() : null;
-
-            const long mb = 1024 * 1024;
-            if (dialogResult.InitialSize > 0)
-            {
-                cs.InitialSize = dialogResult.InitialSize * mb;
-            }
-
-            if (!string.IsNullOrWhiteSpace(dialogResult.CollationLeft))
-            {
-                var collation = dialogResult.CollationLeft;
-                if (!string.IsNullOrWhiteSpace(dialogResult.CollationRight))
-                {
-                    collation += "/" + dialogResult.CollationRight;
-                }
-
-                cs.Collation = new Collation(collation);
-            }
-
-            CursorText = "Opening " + filename;
-            ElapsedText = "Reading...";
-
-            var connectionString = BuildConnectionString(cs);
-            await _dbService.ConnectAsync(connectionString, CancellationToken.None);
-
-            // persist last connection and recent list using same AppSettingsManager calls
-            _appSettingsService.ApplicationSettings.LastConnectionStrings = cs;
-            _appSettingsService.AddToRecentList(cs);
-
-            IsConnected = true;
-            CurrentDatabase = filename;
-
-            // populate tree view to match WinForms behavior
-            try
-            {
-                await Tree.LoadRootNodesAsync();
-            }
-            catch
-            {
-                // non-fatal, ignore tree population errors
-            }
-
-            if (!RecentDatabases.Contains(filename))
-            {
-                RecentDatabases.Insert(0, filename);
-            }
-        }
-        catch (Exception ex)
+        const long mb = 1024 * 1024;
+        if (dialogResult.InitialSize > 0)
         {
-            CursorText = "Error: " + ex.Message;
-            IsConnected = false;
-            CurrentDatabase = string.Empty;
+            cs.InitialSize = dialogResult.InitialSize * mb;
         }
-        finally
+
+        if (!string.IsNullOrWhiteSpace(dialogResult.CollationLeft))
         {
-            ElapsedText = string.Empty;
+            var collation = dialogResult.CollationLeft;
+            if (!string.IsNullOrWhiteSpace(dialogResult.CollationRight))
+            {
+                collation += "/" + dialogResult.CollationRight;
+            }
+
+            cs.Collation = new Collation(collation);
         }
+
+        await ConnectWithConnectionStringAsync(cs, filename, true, cancellationToken);
     }
 
-    private async Task RefreshTreeAsync()
+    private async Task RefreshTreeAsync(CancellationToken cancellationToken)
     {
         Tree.RootNodes.Clear();
-        await Tree.LoadRootNodesAsync();
-    }
-
-    private void InsertSnippet(string? snippet)
-    {
-        if (SelectedTab == null || string.IsNullOrEmpty(snippet)) {
-            return;
-        }
-
-        var text = SelectedTab.EditorText;
-        var offset = SelectedTab.CaretOffset;
-
-        // Ensure offset is within bounds
-        if (offset < 0) {
-            offset = 0;
-        }
-
-        if (offset > text.Length) {
-            offset = text.Length;
-        }
-
-        SelectedTab.EditorText = text.Insert(offset, snippet);
-        SelectedTab.IsModified = true;
+        await Tree.LoadRootNodesAsync(cancellationToken);
     }
 
     private void Disconnect()
     {
-        var unsavedTabs = Tabs.Where(t => t is { IsModified: true, IsPlus: false }).ToList();
-        if (unsavedTabs.Any())
+        if (_tabManager.HasUnsavedTabs)
         {
             var confirmed = _dialogService.Confirm(
                 "You have unsaved changes in some tabs. Do you want to disconnect anyway?",
@@ -318,97 +254,26 @@ public partial class MainViewModel : ShellContentViewModel
         }
     }
 
-    private void AddNewTab()
+    private void LoadLastDatabase()
     {
-        var newTab = new TabViewModel(_dbService) { Title = $"Query {Tabs.Count}" };
-
-        // insert before plus tab
-        TabViewModel? plus = Tabs.FirstOrDefault(t => t.Title == "+");
-        if (plus != null)
+        var last = _appSettingsService.ApplicationSettings.LastConnectionStrings?.Filename;
+        if (!string.IsNullOrEmpty(last))
         {
-            var idx = Tabs.IndexOf(plus);
-            Tabs.Insert(idx, newTab);
+            _ = OpenRecentAsync(last, CancellationToken.None);
         }
-        else
-        {
-            Tabs.Add(newTab);
-        }
-
-        SelectedTab = newTab;
     }
 
     public void AddSqlSnippet(string sql)
     {
-        if (string.IsNullOrWhiteSpace(sql)) {
-            return;
-        }
-
-        // if there's no selected tab or selected tab is the plus tab, or current content is empty -> set into current
-        if (SelectedTab == null || SelectedTab.Title == "+" || string.IsNullOrWhiteSpace(SelectedTab.EditorText))
-        {
-            // ensure there's a non-plus tab to place content
-            if (SelectedTab == null || SelectedTab.Title == "+")
-            {
-                AddNewTab();
-            }
-
-            SelectedTab = SelectedTab ?? throw new InvalidOperationException("SelectedTab is null after AddNewTab");
-            SelectedTab.EditorText = sql.Replace("\\n", "\n");
-        }
-        else
-        {
-            // insert new tab before plus
-            TabViewModel? plus = Tabs.FirstOrDefault(t => t.Title == "+");
-            var newTab = new TabViewModel(_dbService) { Title = $"Query {Tabs.Count}", EditorText = sql.Replace("\\n", "\n") };
-            if (plus != null)
-            {
-                var idx = Tabs.IndexOf(plus);
-                Tabs.Insert(idx, newTab);
-            }
-            else
-            {
-                Tabs.Add(newTab);
-            }
-
-            SelectedTab = newTab;
-        }
+        _tabManager.AddSqlSnippet(sql);
     }
 
-    private void CloseTab(TabViewModel? tab)
+    public void AddSqlSnippetInNewTab(string sql)
     {
-        if (tab == null || tab.IsPlus) {
-            return;
-        }
-
-        var idx = Tabs.IndexOf(tab);
-        if (idx >= 0) {
-            Tabs.RemoveAt(idx);
-        }
-
-        // If there are no non-plus (real) tabs, ensure we create one
-        if (Tabs.All(t => t.IsPlus))
-        {
-            AddNewTab();
-        }
-
-        // Select a reasonable tab: prefer the item that occupies the previous index, then fallback
-        if (Tabs.Count <= 0) { return; }
-
-        {
-            var selectIndex = Math.Min(idx, Tabs.Count - 1);
-            SelectedTab = Tabs[selectIndex];
-
-            if (!SelectedTab.IsPlus) { return; }
-
-            TabViewModel? nonPlus = Tabs.FirstOrDefault(t => !t.IsPlus);
-            if (nonPlus != null)
-            {
-                SelectedTab = nonPlus;
-            }
-        }
+        _tabManager.AddSqlSnippetInNewTab(sql);
     }
 
-    public async Task OpenRecentAsync(object? filename)
+    public async Task OpenRecentAsync(object? filename, CancellationToken cancellationToken)
     {
         var fName = filename as string;
         if (string.IsNullOrEmpty(fName)) {
@@ -417,23 +282,50 @@ public partial class MainViewModel : ShellContentViewModel
 
         CursorText = "Opening: " + fName;
 
+        var cs = new ConnectionString(fName);
+        await ConnectWithConnectionStringAsync(cs, fName, false, cancellationToken);
+    }
+
+    private async Task ConnectWithConnectionStringAsync(ConnectionString cs, string filename, bool populateTree, CancellationToken cancellationToken)
+    {
         try
         {
-            var cs = new ConnectionString(fName);
+            cancellationToken.ThrowIfCancellationRequested();
             var connectionString = BuildConnectionString(cs);
-            await _dbService.ConnectAsync(connectionString, CancellationToken.None);
+            await _dbService.ConnectAsync(connectionString, cancellationToken);
 
             _appSettingsService.ApplicationSettings.LastConnectionStrings = cs;
             _appSettingsService.AddToRecentList(cs);
 
             IsConnected = true;
-            CurrentDatabase = fName;
+            CurrentDatabase = filename;
+
+            if (populateTree)
+            {
+                try
+                {
+                    await Tree.LoadRootNodesAsync(cancellationToken);
+                }
+                catch
+                {
+                    // non-fatal, ignore tree population errors
+                }
+
+                if (!RecentDatabases.Contains(filename))
+                {
+                    RecentDatabases.Insert(0, filename);
+                }
+            }
         }
         catch (Exception ex)
         {
             CursorText = "Error: " + ex.Message;
             IsConnected = false;
             CurrentDatabase = string.Empty;
+        }
+        finally
+        {
+            ElapsedText = string.Empty;
         }
     }
 
@@ -499,10 +391,9 @@ public partial class MainViewModel : ShellContentViewModel
             if (!e.IsConnected) { return; }
 
             Serilog.Log.Information("Database connected - ensuring a query tab is available");
-            var hasUserTabs = Tabs.Any(t => !t.IsPlus);
-            if (hasUserTabs) { return; }
+            if (_tabManager.HasUserTabs) { return; }
 
-            AddNewTab();
+            _tabManager.AddNewTab();
             Serilog.Log.Information("Added new query tab on connect");
         }
         catch (Exception ex)

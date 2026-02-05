@@ -26,7 +26,7 @@ public sealed class ConnectionManagerDialogService(IServiceProvider services) : 
 
     public ConnectionManagerDialogResult? ShowDialog()
     {
-        var window = _services.GetRequiredService<ConnectionManagerWindow>();
+        ConnectionManagerWindow window = _services.GetRequiredService<ConnectionManagerWindow>();
         window.Owner = Application.Current?.MainWindow;
 
         var shown = window.ShowDialog();

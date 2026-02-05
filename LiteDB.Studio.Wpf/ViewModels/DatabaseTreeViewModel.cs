@@ -1,4 +1,5 @@
 using CommunityToolkit.Mvvm.ComponentModel;
+using CommunityToolkit.Mvvm.Input;
 using LiteDB.Studio.Wpf.Services;
 using Serilog;
 using System.Collections.ObjectModel;
@@ -15,6 +16,7 @@ public partial class DatabaseTreeViewModel : ViewModel
     private readonly IFileService _fileService;
 
     public event EventHandler<string>? InsertSnippetRequested;
+    public event EventHandler<string>? AddSqlSnippetRequested;
 
     public DatabaseTreeViewModel(
         IDatabaseService databaseService,
@@ -40,6 +42,24 @@ public partial class DatabaseTreeViewModel : ViewModel
     private int _systemCount;
 
     public string StatusText => $"Collections: {CollectionsCount} / System: {SystemCount}";
+
+    [RelayCommand]
+    private void OpenNodeInNewTab(DbTreeNode? node)
+    {
+        if (node == null) {
+            return;
+        }
+
+        if (node.Tag != "collection" && node.Tag != "field" && node.Tag != "system") {
+            return;
+        }
+
+        var snippet =
+            node.Tag is "collection" or "system" ? $"SELECT $ FROM {node.Header};" :
+            node.Header;
+
+        RequestAddSqlSnippet(snippet);
+    }
 
     private void RootNodes_CollectionChanged(object? sender, NotifyCollectionChangedEventArgs e)
     {
@@ -167,6 +187,15 @@ public partial class DatabaseTreeViewModel : ViewModel
             Log.Error(ex, "Failed to load root nodes");
             throw;
         }
+    }
+
+    public void RequestAddSqlSnippet(string snippet)
+    {
+        if (string.IsNullOrWhiteSpace(snippet)) {
+            return;
+        }
+
+        AddSqlSnippetRequested?.Invoke(this, snippet);
     }
 
     public override void RegisterMessengerReceivers() => throw new NotImplementedException();

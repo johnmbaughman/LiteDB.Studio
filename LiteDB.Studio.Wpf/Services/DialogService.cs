@@ -20,7 +20,7 @@ public sealed class DialogService : IDialogService
 {
     public bool Confirm(string message, string title, DialogIcon icon = DialogIcon.None)
     {
-        var image = icon switch
+        MessageBoxImage image = icon switch
         {
             DialogIcon.Information => MessageBoxImage.Information,
             DialogIcon.Warning => MessageBoxImage.Warning,

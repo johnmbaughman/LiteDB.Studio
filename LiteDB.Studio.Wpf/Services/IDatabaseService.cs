@@ -1,6 +1,6 @@
 namespace LiteDB.Studio.Wpf.Services;
 
-public interface IDatabaseService : IDisposable
+public interface IDatabaseService : IDisposable, IAsyncDisposable
 {
     bool IsConnected { get; }
 

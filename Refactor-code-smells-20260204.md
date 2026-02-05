@@ -8,7 +8,7 @@ The WPF project is functional but contains MVVM boundary violations, synchronous
 
 ## High-Priority Refactor Opportunities
 
-### 1) Remove UI dependencies from ViewModels
+### 1) Remove UI dependencies from ViewModels (Done)
 **Why:** ViewModels call UI APIs directly (MessageBox, dialogs, Application.Current), which couples them to WPF and makes them hard to unit test.
 
 **Examples:**
@@ -25,7 +25,7 @@ The WPF project is functional but contains MVVM boundary violations, synchronous
 
 ---
 
-### 2) Remove WPF UI types from ViewModels
+### 2) Remove WPF UI types from ViewModels (Done)
 **Why:** ResultGridViewModel creates DataGridColumn, Binding, Style. That is view-specific logic and should live in the View or a UI layer.
 
 **Refactor:** Replace DataGridColumn creation with a view-model-friendly descriptor (e.g., ColumnDescriptor with name, type, formatting hints). Build WPF DataGridColumns in ResultGrid control or a view-only helper.
@@ -36,7 +36,7 @@ The WPF project is functional but contains MVVM boundary violations, synchronous
 
 ---
 
-### 3) Replace static AppSettingsManager with injectable service
+### 3) Replace static AppSettingsManager with injectable service (Done)
 **Why:** Static utility with file I/O is hard to test and hides dependencies; it also makes persistence logic implicit and scattered.
 
 **Refactor:** Create an IAppSettingsService with file system dependency injected. Use it from ViewModels and views. This improves testability and allows mocking.
@@ -48,7 +48,7 @@ The WPF project is functional but contains MVVM boundary violations, synchronous
 
 ---
 
-### 4) Avoid blocking calls in services and app startup
+### 4) Avoid blocking calls in services and app startup (Done)
 **Why:** LiteDbService uses .GetAwaiter().GetResult() in Dispose/Disconnect. LiteDbStudioApplication uses Task.Run for AppHost.StartAsync without proper lifetime handling. Both can cause deadlocks and obscure failure paths.
 
 **Refactor:** Implement IAsyncDisposable for LiteDbService and manage shutdown explicitly. Make AppHost.StartAsync awaited on startup (or a robust background start with error handling and readiness flag). Avoid sync-over-async.
@@ -62,7 +62,7 @@ The WPF project is functional but contains MVVM boundary violations, synchronous
 
 ## Medium-Priority Refactor Opportunities
 
-### 5) Move code-behind logic into ViewModels or behaviors
+### 5) Move code-behind logic into ViewModels or behaviors (Done)
 **Why:** Views include behavior (double-click handling, syntax highlighting lifecycle) that could be separated for testability and consistency with MVVM.
 
 **Refactor:**
@@ -90,7 +90,7 @@ The WPF project is functional but contains MVVM boundary violations, synchronous
 
 ---
 
-### 7) Cancellation token usage is inconsistent
+### 7) Cancellation token usage is inconsistent (Done)
 **Why:** Many async operations use CancellationToken.None, which prevents cancellation and affects responsiveness.
 
 **Refactor:** Add CancellationToken parameters to commands and pass tokens through to services. Introduce cancellation support for long queries and schema sampling.
@@ -103,7 +103,7 @@ The WPF project is functional but contains MVVM boundary violations, synchronous
 
 ---
 
-### 8) Reduce tight coupling between ViewModels and Views in MVVM layer
+### 8) Reduce tight coupling between ViewModels and Views in MVVM layer (Done)
 **Why:** ShellContentViewModel keeps a hard reference to IShellContentView (View). This creates a back-reference from VM to View, violating MVVM separation and making testing difficult.
 
 **Refactor:** Remove the View property or replace it with an interface that only exposes necessary services (e.g., IWindowService). Prefer messaging or mediator patterns rather than direct View references.

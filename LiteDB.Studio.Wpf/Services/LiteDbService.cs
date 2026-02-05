@@ -1,69 +1,73 @@
+// unset:none
+
 using System.Diagnostics;
 using Serilog;
 
 namespace LiteDB.Studio.Wpf.Services;
 
 public class LiteDbService : IDatabaseService, IAsyncDisposable
+{
+    private LiteDatabase? _db;
+    private readonly Lock _sync = new();
+
+    public bool IsConnected => _db != null;
+
+    public bool TransactionActive { get; private set; }
+
+    public event EventHandler<ConnectionStateChangedEventArgs>? ConnectionStateChanged;
+    public event EventHandler<TransactionStateChangedEventArgs>? TransactionStateChanged;
+
+    public void Dispose()
     {
-        private LiteDatabase? _db;
-        private readonly Lock _sync = new();
+        // Perform synchronous disconnect without blocking on async calls
+        DoDisconnect();
+    }
 
-        public bool IsConnected => _db != null;
+    public async ValueTask DisposeAsync()
+    {
+        // Support async disposal for callers who want to await it
+        await DisconnectAsync().ConfigureAwait(false);
+    }
 
-        public bool TransactionActive { get; private set; }
+    public object? Database => _db;
 
-        public event EventHandler<ConnectionStateChangedEventArgs>? ConnectionStateChanged;
-        public event EventHandler<TransactionStateChangedEventArgs>? TransactionStateChanged;
+    public void Disconnect()
+    {
+        // Synchronous disconnect
+        DoDisconnect();
+    }
 
-        public void Dispose()
+    private void DoDisconnect()
+    {
+        if (!IsConnected)
         {
-            // Perform synchronous disconnect without blocking on async calls
-            DoDisconnect();
+            return;
         }
 
-        public async ValueTask DisposeAsync()
+        if (TransactionActive)
         {
-            // Support async disposal for callers who want to await it
-            await DisconnectAsync().ConfigureAwait(false);
+            throw new InvalidOperationException("Transaction in progress (must commit or rollback before disconnecting).");
         }
 
-        public object? Database => _db;
-
-        public void Disconnect()
+        lock (_sync)
         {
-            // Synchronous disconnect
-            DoDisconnect();
+            try
+            {
+                _db?.Dispose();
+            }
+            finally
+            {
+                _db = null;
+                ConnectionStateChanged?.Invoke(this, new ConnectionStateChangedEventArgs(false));
+            }
         }
-
-        private void DoDisconnect()
-        {
-            if (!IsConnected)
-            {
-                return;
-            }
-
-            if (TransactionActive)
-            {
-                throw new InvalidOperationException("Transaction in progress (must commit or rollback before disconnecting).");
-            }
-
-            lock (_sync)
-            {
-                try
-                {
-                    _db?.Dispose();
-                }
-                finally
-                {
-                    _db = null;
-                    ConnectionStateChanged?.Invoke(this, new ConnectionStateChangedEventArgs(false));
-                }
-            }
     }
 
     public Task ConnectAsync(string connectionString, CancellationToken cancellationToken)
     {
-        if (IsConnected) {
+        cancellationToken.ThrowIfCancellationRequested();
+        if (IsConnected)
+        {
             throw new InvalidOperationException("Already connected");
         }
 
@@ -103,7 +107,9 @@ public class LiteDbService : IDatabaseService, IAsyncDisposable
 
     public Task<QueryResult> ExecuteAsync(string? query, CancellationToken cancellationToken)
     {
-        if (!IsConnected) {
+        cancellationToken.ThrowIfCancellationRequested();
+        if (!IsConnected)
+        {
             throw new InvalidOperationException("Not connected");
         }
 
@@ -121,6 +127,7 @@ public class LiteDbService : IDatabaseService, IAsyncDisposable
             // Read first row to infer columns
             if (reader.Read())
             {
+                cancellationToken.ThrowIfCancellationRequested();
                 var firstDoc = reader.Current as BsonDocument;
                 if (firstDoc != null)
                 {
@@ -175,7 +182,9 @@ public class LiteDbService : IDatabaseService, IAsyncDisposable
 
     public Task<IEnumerable<string>> GetCollectionNamesAsync(CancellationToken cancellationToken)
     {
-        if (!IsConnected) {
+        cancellationToken.ThrowIfCancellationRequested();
+        if (!IsConnected)
+        {
             throw new InvalidOperationException("Not connected");
         }
 
@@ -186,7 +195,9 @@ public class LiteDbService : IDatabaseService, IAsyncDisposable
 
     public Task<IEnumerable<string>> GetSystemCollectionNamesAsync(CancellationToken cancellationToken)
     {
-        if (!IsConnected) {
+        cancellationToken.ThrowIfCancellationRequested();
+        if (!IsConnected)
+        {
             throw new InvalidOperationException("Not connected");
         }
 
@@ -225,7 +236,9 @@ public class LiteDbService : IDatabaseService, IAsyncDisposable
 
     public Task<IEnumerable<ColumnInfo>> GetCollectionSchemaAsync(string collectionName, CancellationToken cancellationToken)
     {
-        if (!IsConnected) {
+        cancellationToken.ThrowIfCancellationRequested();
+        if (!IsConnected)
+        {
             throw new InvalidOperationException("Not connected");
         }
 
@@ -234,8 +247,9 @@ public class LiteDbService : IDatabaseService, IAsyncDisposable
 
         // Sample first 100 documents to infer schema
         IEnumerable<BsonDocument> documents = collection.Find(Query.All(), 0, 100);
-        foreach (BsonDocument? doc in documents)
+        foreach (BsonDocument doc in documents)
         {
+            cancellationToken.ThrowIfCancellationRequested();
             foreach (var key in doc.Keys)
             {
                 if (schema.ContainsKey(key)) { continue; }
@@ -258,7 +272,9 @@ public class LiteDbService : IDatabaseService, IAsyncDisposable
 
     public Task UpdateDocumentFieldAsync(string collectionName, object documentId, string fieldPath, object? newValue, CancellationToken cancellationToken)
     {
-        if (!IsConnected) {
+        cancellationToken.ThrowIfCancellationRequested();
+        if (!IsConnected)
+        {
             throw new InvalidOperationException("Not connected");
         }
 
@@ -285,21 +301,21 @@ public class LiteDbService : IDatabaseService, IAsyncDisposable
 
         // Update the document
         var updated = collection.Update(doc);
-        if (!updated)
-        {
-            throw new InvalidOperationException("Failed to update document");
-        }
-
-        return Task.CompletedTask;
+        return !updated
+            ? throw new InvalidOperationException("Failed to update document")
+            : Task.CompletedTask;
     }
 
     public Task BeginTransactionAsync(CancellationToken cancellationToken)
     {
-        if (!IsConnected) {
+        cancellationToken.ThrowIfCancellationRequested();
+        if (!IsConnected)
+        {
             throw new InvalidOperationException("Not connected");
         }
 
-        if (TransactionActive) {
+        if (TransactionActive)
+        {
             throw new InvalidOperationException("Transaction already active");
         }
 
@@ -311,11 +327,14 @@ public class LiteDbService : IDatabaseService, IAsyncDisposable
 
     public Task CommitTransactionAsync(CancellationToken cancellationToken)
     {
-        if (!IsConnected) {
+        cancellationToken.ThrowIfCancellationRequested();
+        if (!IsConnected)
+        {
             throw new InvalidOperationException("Not connected");
         }
 
-        if (!TransactionActive) {
+        if (!TransactionActive)
+        {
             throw new InvalidOperationException("No active transaction");
         }
 
@@ -327,11 +346,14 @@ public class LiteDbService : IDatabaseService, IAsyncDisposable
 
     public Task RollbackTransactionAsync(CancellationToken cancellationToken)
     {
-        if (!IsConnected) {
+        cancellationToken.ThrowIfCancellationRequested();
+        if (!IsConnected)
+        {
             throw new InvalidOperationException("Not connected");
         }
 
-        if (!TransactionActive) {
+        if (!TransactionActive)
+        {
             throw new InvalidOperationException("No active transaction");
         }
 
@@ -343,7 +365,9 @@ public class LiteDbService : IDatabaseService, IAsyncDisposable
 
     public Task CheckpointAsync(CancellationToken cancellationToken)
     {
-        if (!IsConnected) {
+        cancellationToken.ThrowIfCancellationRequested();
+        if (!IsConnected)
+        {
             throw new InvalidOperationException("Not connected");
         }
 

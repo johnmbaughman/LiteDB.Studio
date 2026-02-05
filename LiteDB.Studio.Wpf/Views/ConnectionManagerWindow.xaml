@@ -47,14 +47,14 @@
             Header="Filename">
             <Canvas>
                 <TextBox
-                    x:Name="FilenameBox"
+                    x:Name="FilenameTextbox"
                     Canvas.Left="19"
                     Canvas.Top="28"
                     Width="502"
                     Height="27"
                     Text="{Binding Filename}" />
                 <Button
-                    x:Name="BtnOpen"
+                    x:Name="OpenButton"
                     Canvas.Left="527"
                     Canvas.Top="28"
                     Width="28"
@@ -86,13 +86,12 @@
                     Width="404"
                     Height="27"
                     util:PasswordBoxBehavior.BoundPassword="{Binding Password}" />
-
                 <Label
                     Canvas.Left="18"
                     Canvas.Top="64"
                     Content="Initial Size (MB):" />
                 <TextBox
-                    x:Name="txtInitialSize"
+                    x:Name="InitialSizeTextbox"
                     Canvas.Left="151"
                     Canvas.Top="61"
                     Width="70"
@@ -105,7 +104,7 @@
                     Canvas.Top="103"
                     Content="Collation:" />
                 <ComboBox
-                    x:Name="cmbCulture"
+                    x:Name="CultureCombobox"
                     Canvas.Left="151"
                     Canvas.Top="100"
                     Width="117"
@@ -116,7 +115,7 @@
                     Canvas.Top="103"
                     Content="/" />
                 <ComboBox
-                    x:Name="cmbSort"
+                    x:Name="SortCombobox"
                     Canvas.Left="292"
                     Canvas.Top="100"
                     Width="117"
@@ -124,12 +123,12 @@
                     IsEditable="False" />
 
                 <CheckBox
-                    x:Name="chkReadonly"
+                    x:Name="ReadonlyCheckbox"
                     Canvas.Left="21"
                     Canvas.Top="139"
                     Content="Read only" />
                 <CheckBox
-                    x:Name="chkUpgrade"
+                    x:Name="UpgradeCheckbox"
                     Canvas.Left="21"
                     Canvas.Top="175"
                     Content="Upgrade from LiteDB v4 (if needed)" />
@@ -137,7 +136,7 @@
         </GroupBox>
 
         <Button
-            x:Name="btnOK"
+            x:Name="OkButton"
             Canvas.Left="454"
             Canvas.Top="383"
             Width="127"

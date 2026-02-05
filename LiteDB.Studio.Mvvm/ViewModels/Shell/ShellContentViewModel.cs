@@ -1,5 +1,3 @@
-using LiteDB.Studio.Mvvm.Views.Shell;
-
 namespace LiteDB.Studio.Mvvm.ViewModels.Shell;
 
 /// <summary>
@@ -19,12 +17,6 @@ public abstract class ShellContentViewModel : ViewModel, IShellContentViewModel 
         get => _shellViewModel;
         set => SetProperty(ref _shellViewModel, value);
     }
-
-    /// <summary>
-    /// The view
-    /// </summary>
-    /// <value>The view.</value>
-    public IShellContentView View { get; set; } = null!;
 
     /// <summary>
     /// Assigns the shell.

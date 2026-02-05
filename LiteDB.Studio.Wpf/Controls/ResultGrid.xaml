@@ -53,6 +53,7 @@
             x:Name="ResultsDataGrid"
             Grid.Row="1"
             AutoGenerateColumns="False"
+            CanUserAddRows="False"
             CanUserResizeColumns="True"
             CanUserResizeRows="False"
             IsReadOnly="False"

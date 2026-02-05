@@ -64,7 +64,15 @@ public partial class App
             Log.Information("Application shutting down");
 
             await AppHost.StopAsync();
-            AppHost.Dispose();
+
+            if (AppHost is IAsyncDisposable asyncDisposable)
+            {
+                await asyncDisposable.DisposeAsync();
+            }
+            else
+            {
+                AppHost.Dispose();
+            }
 
             base.OnExit(e);
         }

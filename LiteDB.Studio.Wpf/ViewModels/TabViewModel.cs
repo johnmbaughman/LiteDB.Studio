@@ -63,13 +63,14 @@ public partial class TabViewModel : ObservableObject
     public IAsyncRelayCommand ShowCompletionCommand { get; }
     public IRelayCommand CloseCommand { get; }
 
-    private async Task ExecuteRunAsync()
+    private async Task ExecuteRunAsync(CancellationToken cancellationToken)
     {
         LastError = null;
         LastResult = null;
 
         try
         {
+            cancellationToken.ThrowIfCancellationRequested();
             var query =
                 // Execute selection
                 SelectionLength > 0 ? EditorText.Substring(SelectionStart, SelectionLength) :
@@ -77,7 +78,7 @@ public partial class TabViewModel : ObservableObject
                 EditorText;
 
             Serilog.Log.Information("Executing query from Tab '{Title}' (len={Len})", Title, query.Length);
-            QueryResult result = await _databaseService.ExecuteAsync(query, CancellationToken.None);
+            QueryResult result = await _databaseService.ExecuteAsync(query, cancellationToken);
             LastResult = result;
             IsResultLoaded = true;
             SelectedResultTabIndex = 0; // show Grid tab when results are available
@@ -122,11 +123,11 @@ public partial class TabViewModel : ObservableObject
         return list;
     }
 
-    private async Task ExecuteShowCompletionAsync()
+    private async Task ExecuteShowCompletionAsync(CancellationToken cancellationToken)
     {
         try
         {
-            LastCompletions = await GetCollectionCompletionsAsync(CancellationToken.None);
+            LastCompletions = await GetCollectionCompletionsAsync(cancellationToken);
         }
         catch
         {

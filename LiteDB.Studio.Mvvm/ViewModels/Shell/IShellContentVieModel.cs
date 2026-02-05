@@ -1,5 +1,3 @@
-using LiteDB.Studio.Mvvm.Views.Shell;
-
 namespace LiteDB.Studio.Mvvm.ViewModels.Shell;
 
 /// <summary>
@@ -12,11 +10,6 @@ public interface IShellContentViewModel : IViewModel {
     /// Gets or sets the shell view model associated with this content.
     /// </summary>
     IShellViewModel ShellViewModel { get; set; }
-
-    /// <summary>
-    /// Gets or sets the shell content view associated with this view model.
-    /// </summary>
-    IShellContentView View { get; set; }
 
     /// <summary>
     /// Assigns the shell view model to this content view model.

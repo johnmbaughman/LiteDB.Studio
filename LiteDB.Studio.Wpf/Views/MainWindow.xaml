@@ -13,6 +13,7 @@
     MinHeight="600"
     HorizontalAlignment="Stretch"
     VerticalAlignment="Stretch"
+    behaviors:SqlHighlightingBehavior.EnableSqlHighlighting="True"
     d:DataContext="{d:DesignInstance}"
     mc:Ignorable="d">
 
@@ -265,7 +266,7 @@
 
                         <Button
                             Margin="0,0,6,0"
-                            Click="LoadLastDb_Click"
+                            Command="{Binding LoadLastDatabaseCommand}"
                             ToolTip="Load last DB">
                             <util:GrayableImage
                                 Width="16"
@@ -373,6 +374,7 @@
                                 Grid.Row="0"
                                 HorizontalAlignment="Stretch"
                                 VerticalAlignment="Stretch"
+                                behaviors:SqlHighlightingBehavior.EnableSqlHighlighting="True"
                                 behaviors:AvalonEditBehaviors.CaretOffset="{Binding CaretOffset, Mode=TwoWay}"
                                 behaviors:AvalonEditBehaviors.EditorText="{Binding EditorText, Mode=TwoWay}"
                                 behaviors:AvalonEditBehaviors.IsModified="{Binding IsModified, Mode=TwoWay}"
