@@ -47,9 +47,20 @@ public class LiteDbStudioApplication : Application {
     /// </summary>
     /// <param name="applicationName">The name to assign to the running application instance.</param>
     /// <param name="e">The startup event arguments provided by WPF.</param>
-    public void StartApplication(string applicationName, StartupEventArgs e) {
+    public async Task StartApplicationAsync(string applicationName, StartupEventArgs e) {
         ApplicationName = applicationName;
-        Task.Run(async () => await AppHost.StartAsync());
+
+        try
+        {
+            await AppHost.StartAsync().ConfigureAwait(false);
+        }
+        catch (Exception ex)
+        {
+            // Ensure logging is recorded if host fails to start
+            Logger?.Error(ex, "Host failed to start: {Message}", ex.Message);
+            throw;
+        }
+
         base.OnStartup(e);
     }
 }

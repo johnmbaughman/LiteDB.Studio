@@ -4,16 +4,17 @@ using LiteDB.Studio.Wpf.Services;
 using System.Collections.ObjectModel;
 using System.Data;
 using System.Globalization;
-using System.Windows;
+using System.IO;
 using LiteDB.Studio.Mvvm.ViewModels.Shell;
-using Microsoft.Extensions.DependencyInjection;
 
 namespace LiteDB.Studio.Wpf.ViewModels;
 
 public partial class MainViewModel : ShellContentViewModel
 {
     private readonly IDatabaseService _dbService;
-    private readonly IServiceProvider _services;
+    private readonly IConnectionManagerDialogService _connectionDialogService;
+    private readonly IDialogService _dialogService;
+    private readonly IAppSettingsService _appSettingsService;
 
     [ObservableProperty]
     private string _cursorText = string.Empty;
@@ -39,10 +40,17 @@ public partial class MainViewModel : ShellContentViewModel
     public DatabaseTreeViewModel Tree { get; }
     public DataTable CurrentResults { get; } = new();
 
-    public MainViewModel(IDatabaseService dbService, DatabaseTreeViewModel tree, IServiceProvider services)
+    public MainViewModel(
+        IDatabaseService dbService,
+        DatabaseTreeViewModel tree,
+        IConnectionManagerDialogService connectionDialogService,
+        IDialogService dialogService,
+        IAppSettingsService appSettingsService)
     {
         _dbService = dbService ?? throw new ArgumentNullException(nameof(dbService));
-        _services = services ?? throw new ArgumentNullException(nameof(services));
+        _connectionDialogService = connectionDialogService ?? throw new ArgumentNullException(nameof(connectionDialogService));
+        _dialogService = dialogService ?? throw new ArgumentNullException(nameof(dialogService));
+        _appSettingsService = appSettingsService ?? throw new ArgumentNullException(nameof(appSettingsService));
         // TODO: Pick up moving things around here. Need to find a way to connect TreeView events to MainViewModel without tight coupling in MVVM framework.
         Tree = tree ?? throw new ArgumentNullException(nameof(tree));
         Tree.InsertSnippetRequested += (_, snippet) => InsertSnippet(snippet);
@@ -75,18 +83,35 @@ public partial class MainViewModel : ShellContentViewModel
     public void Initialize()
     {
         // load persisted recent list
-        foreach (ConnectionString cs in Util.AppSettingsManager.ApplicationSettings.RecentConnectionStrings)
+        foreach (ConnectionString cs in _appSettingsService.ApplicationSettings.RecentConnectionStrings)
         {
             RecentDatabases.Add(cs.Filename);
         }
 
         // auto-open last DB if requested
-        if (!LoadLastDatabaseOnStartup || !Util.AppSettingsManager.IsLastDbExist()) { return; }
+        if (!LoadLastDatabaseOnStartup || !_appSettingsService.IsLastDbExist()) { return; }
 
-        var last = Util.AppSettingsManager.ApplicationSettings.LastConnectionStrings?.Filename;
+        var last = _appSettingsService.ApplicationSettings.LastConnectionStrings?.Filename;
         if (!string.IsNullOrEmpty(last))
         {
             _ = OpenRecentAsync(last);
+        }
+    }
+
+    // Update the shell window title when the current database changes
+    partial void OnCurrentDatabaseChanged(string value)
+    {
+        try
+        {
+            var appName = Mvvm.LiteDbStudioApplication.ApplicationName;
+            var titleBase = string.IsNullOrEmpty(appName) ? "LiteDB Studio" : appName;
+            var dbName = string.IsNullOrEmpty(value) ? null : Path.GetFileName(value);
+
+            ShellViewModel.Title = string.IsNullOrEmpty(dbName) ? titleBase : $"{titleBase} - {dbName}";
+        }
+        catch
+        {
+            // ignore errors updating title
         }
     }
 
@@ -126,8 +151,8 @@ public partial class MainViewModel : ShellContentViewModel
         {
             if (!SetProperty(ref _loadLastDatabaseOnStartup, value)) { return; }
 
-            Util.AppSettingsManager.ApplicationSettings.LoadLastDbOnStartup = value;
-            Util.AppSettingsManager.PersistData();
+            _appSettingsService.ApplicationSettings.LoadLastDbOnStartup = value;
+            _appSettingsService.PersistData();
         }
     }
 
@@ -142,19 +167,13 @@ public partial class MainViewModel : ShellContentViewModel
             return;
         }
 
-        // Resolve connection dialog from DI (includes ViewModel)
-        Views.ConnectionManagerWindow win = _services.GetRequiredService<Views.ConnectionManagerWindow>();
-        win.Owner = Application.Current?.MainWindow;
-
-        var shown = win.ShowDialog();
-        if (shown != true) {
+        var dialogResult = _connectionDialogService.ShowDialog();
+        if (dialogResult == null)
+        {
             return;
         }
 
-        // Get ViewModel from window's DataContext
-        var vm = (ConnectionManagerViewModel)win.DataContext;
-
-        var filename = vm.Filename;
+        var filename = dialogResult.Filename;
         if (string.IsNullOrEmpty(filename)) {
             return;
         }
@@ -164,26 +183,26 @@ public partial class MainViewModel : ShellContentViewModel
         // map ConnectionManagerViewModel -> ConnectionString (same logic as WinForms ConnectionForm)
         try
         {
-            cs.Connection = vm.Mode == ConnectionMode.Direct ? ConnectionType.Direct : ConnectionType.Shared;
+            cs.Connection = dialogResult.Mode == ConnectionMode.Direct ? ConnectionType.Direct : ConnectionType.Shared;
 
-            cs.Filename = vm.Filename;
-            cs.ReadOnly = vm.ReadOnly;
-            cs.Upgrade = vm.UpgradeFromV4;
+            cs.Filename = dialogResult.Filename;
+            cs.ReadOnly = dialogResult.ReadOnly;
+            cs.Upgrade = dialogResult.UpgradeFromV4;
 
-            cs.Password = !string.IsNullOrWhiteSpace(vm.Password) ? vm.Password.Trim() : null;
+            cs.Password = !string.IsNullOrWhiteSpace(dialogResult.Password) ? dialogResult.Password.Trim() : null;
 
             const long mb = 1024 * 1024;
-            if (vm.InitialSize > 0)
+            if (dialogResult.InitialSize > 0)
             {
-                cs.InitialSize = vm.InitialSize * mb;
+                cs.InitialSize = dialogResult.InitialSize * mb;
             }
 
-            if (!string.IsNullOrWhiteSpace(vm.CollationLeft))
+            if (!string.IsNullOrWhiteSpace(dialogResult.CollationLeft))
             {
-                var collation = vm.CollationLeft;
-                if (!string.IsNullOrWhiteSpace(vm.CollationRight))
+                var collation = dialogResult.CollationLeft;
+                if (!string.IsNullOrWhiteSpace(dialogResult.CollationRight))
                 {
-                    collation += "/" + vm.CollationRight;
+                    collation += "/" + dialogResult.CollationRight;
                 }
 
                 cs.Collation = new Collation(collation);
@@ -196,8 +215,8 @@ public partial class MainViewModel : ShellContentViewModel
             await _dbService.ConnectAsync(connectionString, CancellationToken.None);
 
             // persist last connection and recent list using same AppSettingsManager calls
-            Util.AppSettingsManager.ApplicationSettings.LastConnectionStrings = cs;
-            Util.AppSettingsManager.AddToRecentList(cs);
+            _appSettingsService.ApplicationSettings.LastConnectionStrings = cs;
+            _appSettingsService.AddToRecentList(cs);
 
             IsConnected = true;
             CurrentDatabase = filename;
@@ -262,8 +281,11 @@ public partial class MainViewModel : ShellContentViewModel
         var unsavedTabs = Tabs.Where(t => t is { IsModified: true, IsPlus: false }).ToList();
         if (unsavedTabs.Any())
         {
-            MessageBoxResult result = MessageBox.Show("You have unsaved changes in some tabs. Do you want to disconnect anyway?", "Unsaved Changes", MessageBoxButton.YesNo, MessageBoxImage.Warning);
-            if (result != MessageBoxResult.Yes) {
+            var confirmed = _dialogService.Confirm(
+                "You have unsaved changes in some tabs. Do you want to disconnect anyway?",
+                "Unsaved Changes",
+                DialogIcon.Warning);
+            if (!confirmed) {
                 return;
             }
         }
@@ -360,12 +382,29 @@ public partial class MainViewModel : ShellContentViewModel
 
         var idx = Tabs.IndexOf(tab);
         if (idx >= 0) {
-            Tabs.Remove(tab);
+            Tabs.RemoveAt(idx);
         }
 
-        if (Tabs.Count > 0)
+        // If there are no non-plus (real) tabs, ensure we create one
+        if (Tabs.All(t => t.IsPlus))
         {
-            SelectedTab = Tabs[Math.Max(0, idx - 1)];
+            AddNewTab();
+        }
+
+        // Select a reasonable tab: prefer the item that occupies the previous index, then fallback
+        if (Tabs.Count <= 0) { return; }
+
+        {
+            var selectIndex = Math.Min(idx, Tabs.Count - 1);
+            SelectedTab = Tabs[selectIndex];
+
+            if (!SelectedTab.IsPlus) { return; }
+
+            TabViewModel? nonPlus = Tabs.FirstOrDefault(t => !t.IsPlus);
+            if (nonPlus != null)
+            {
+                SelectedTab = nonPlus;
+            }
         }
     }
 
@@ -384,8 +423,8 @@ public partial class MainViewModel : ShellContentViewModel
             var connectionString = BuildConnectionString(cs);
             await _dbService.ConnectAsync(connectionString, CancellationToken.None);
 
-            Util.AppSettingsManager.ApplicationSettings.LastConnectionStrings = cs;
-            Util.AppSettingsManager.AddToRecentList(cs);
+            _appSettingsService.ApplicationSettings.LastConnectionStrings = cs;
+            _appSettingsService.AddToRecentList(cs);
 
             IsConnected = true;
             CurrentDatabase = fName;
@@ -400,15 +439,15 @@ public partial class MainViewModel : ShellContentViewModel
 
     private void ClearRecentList()
     {
-        Util.AppSettingsManager.ClearRecentList();
+        _appSettingsService.ClearRecentList();
         RecentDatabases.Clear();
     }
 
     private void ValidateRecentList()
     {
-        Util.AppSettingsManager.ValidateRecentList();
+        _appSettingsService.ValidateRecentList();
         RecentDatabases.Clear();
-        foreach (ConnectionString cs in Util.AppSettingsManager.ApplicationSettings.RecentConnectionStrings)
+        foreach (ConnectionString cs in _appSettingsService.ApplicationSettings.RecentConnectionStrings)
         {
             RecentDatabases.Add(cs.Filename);
         }

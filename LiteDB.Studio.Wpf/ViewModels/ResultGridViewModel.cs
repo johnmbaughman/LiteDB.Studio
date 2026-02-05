@@ -1,7 +1,4 @@
 using System.Collections.ObjectModel;
-using System.Windows;
-using System.Windows.Controls;
-using System.Windows.Data;
 using CommunityToolkit.Mvvm.ComponentModel;
 using LiteDB.Studio.Wpf.Services;
 using LiteDB.Studio.Wpf.Util;
@@ -19,12 +16,14 @@ public partial class ResultGridViewModel(IDatabaseService databaseService) : Obs
     private QueryResult? _queryResult;
 
     [ObservableProperty]
-    private ObservableCollection<DataGridColumn> _columns = [];
+    private ObservableCollection<ColumnDescriptor> _columns = [];
 
-    //private void OnQueryResultChanged()
-    //{
-    //    UpdateColumns();
-    //}
+    // TODO: Use passed variable.
+    partial void OnQueryResultChanged(QueryResult? value)
+    {
+        // Update the column definitions when a new QueryResult arrives
+        UpdateColumns();
+    }
 
     private void UpdateColumns()
     {
@@ -33,21 +32,10 @@ public partial class ResultGridViewModel(IDatabaseService databaseService) : Obs
             return;
         }
 
-        var converter = new BsonValueToStringConverter();
-
         foreach (ColumnInfo column in QueryResult.Columns)
         {
-            var binding = new Binding($"[{column.Name}]") { Converter = converter };
-            var tooltipBinding = new Binding($"[{column.Name}]") { Converter = converter, ConverterParameter = "full" };
-            var dataGridColumn = new DataGridTextColumn
-            {
-                Header = column.Name,
-                Binding = binding
-            };
-            var style = new Style(typeof(TextBlock));
-            style.Setters.Add(new Setter(FrameworkElement.ToolTipProperty, tooltipBinding));
-            dataGridColumn.ElementStyle = style;
-            Columns.Add(dataGridColumn);
+            // Expose a UI-agnostic descriptor for the view to build UI-specific columns
+            Columns.Add(new ColumnDescriptor(column.Name, column.Name, IsEditable: false));
         }
     }
 

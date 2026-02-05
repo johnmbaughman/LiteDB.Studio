@@ -34,12 +34,15 @@ public class BsonValueToStringConverter : IValueConverter
                     case BsonType.Decimal:
                         return bson.RawValue?.ToString() ?? string.Empty;
                     case BsonType.String:
-                        var str = bson.AsString;
+                        var str = bson.AsString ?? string.Empty;
                         if (!isFull && str.Length > 100)
                         {
-                            return str[..97] + "...";
+                            str = str[..97] + "...";
                         }
-                        return str;
+
+                        // Escape double-quotes and newlines and wrap in quotes for grid readability
+                        var escaped = str.Replace("\\", "\\\\").Replace("\"", "\\\"").Replace("\r\n", "\\n").Replace("\n", "\\n").Replace("\r", "\\n");
+                        return $"\"{escaped}\"";
                     case BsonType.ObjectId:
                     case BsonType.Guid:
                         return bson.ToString();
@@ -61,7 +64,7 @@ public class BsonValueToStringConverter : IValueConverter
         }
     }
 
-    public object ConvertBack(object value, Type targetType, object parameter, CultureInfo culture)
+    public object ConvertBack(object? value, Type targetType, object? parameter, CultureInfo culture)
     {
         return Binding.DoNothing;
     }

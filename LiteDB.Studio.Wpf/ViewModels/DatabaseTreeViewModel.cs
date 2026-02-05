@@ -10,12 +10,22 @@ namespace LiteDB.Studio.Wpf.ViewModels;
 public partial class DatabaseTreeViewModel : ViewModel
 {
     private readonly IDatabaseService _databaseService;
+    private readonly IDialogService _dialogService;
+    private readonly IFileDialogService _fileDialogService;
+    private readonly IFileService _fileService;
 
     public event EventHandler<string>? InsertSnippetRequested;
 
-    public DatabaseTreeViewModel(IDatabaseService databaseService)
+    public DatabaseTreeViewModel(
+        IDatabaseService databaseService,
+        IDialogService dialogService,
+        IFileDialogService fileDialogService,
+        IFileService fileService)
     {
         _databaseService = databaseService ?? throw new ArgumentNullException(nameof(databaseService));
+        _dialogService = dialogService ?? throw new ArgumentNullException(nameof(dialogService));
+        _fileDialogService = fileDialogService ?? throw new ArgumentNullException(nameof(fileDialogService));
+        _fileService = fileService ?? throw new ArgumentNullException(nameof(fileService));
         RootNodes = [];
         RootNodes.CollectionChanged += RootNodes_CollectionChanged;
     }
@@ -107,7 +117,7 @@ public partial class DatabaseTreeViewModel : ViewModel
 
             // Create root database node
             const string databaseName = "Database";
-            var rootNode = new DbTreeNode(_databaseService, insertSnippet)
+            var rootNode = new DbTreeNode(_databaseService, _dialogService, _fileDialogService, _fileService, insertSnippet)
             {
                 Header = System.IO.Path.GetFileName(databaseName),
                 Tag = "database",
@@ -115,7 +125,7 @@ public partial class DatabaseTreeViewModel : ViewModel
             };
 
             // Add system collections under root (sorted ascending)
-            var systemNode = new DbTreeNode(_databaseService, insertSnippet)
+            var systemNode = new DbTreeNode(_databaseService, _dialogService, _fileDialogService, _fileService, insertSnippet)
             {
                 Header = "System",
                 Tag = "systemfolder",
@@ -124,7 +134,7 @@ public partial class DatabaseTreeViewModel : ViewModel
 
             foreach (var name in systemCollectionNames.OrderBy(n => n, StringComparer.OrdinalIgnoreCase))
             {
-                var node = new DbTreeNode(_databaseService, insertSnippet)
+                var node = new DbTreeNode(_databaseService, _dialogService, _fileDialogService, _fileService, insertSnippet)
                 {
                     Header = name,
                     Tag = "system",
@@ -138,7 +148,7 @@ public partial class DatabaseTreeViewModel : ViewModel
             // Add user collections directly under root (sorted ascending)
             foreach (var name in collectionNames.OrderBy(n => n, StringComparer.OrdinalIgnoreCase))
             {
-                var node = new DbTreeNode(_databaseService, insertSnippet)
+                var node = new DbTreeNode(_databaseService, _dialogService, _fileDialogService, _fileService, insertSnippet)
                 {
                     Header = name,
                     Tag = "collection",

@@ -42,6 +42,11 @@
     </Content>
   </ItemGroup>
 
+  <!-- SQL syntax highlighter (XSHD) -->
+  <ItemGroup>
+    <EmbeddedResource Include="Resources\Syntax\SQL-Mode.xshd" />
+  </ItemGroup>
+
   <!-- App settings (logging) -->
   <ItemGroup>
     <Content Include="appsettings.json">

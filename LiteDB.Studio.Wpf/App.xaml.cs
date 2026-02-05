@@ -19,6 +19,11 @@ public partial class App
             .ConfigureServices((_, services) =>
             {
                 services.AddSingleton<IDatabaseService, LiteDbService>();
+                services.AddSingleton<IDialogService, DialogService>();
+                services.AddSingleton<IFileDialogService, FileDialogService>();
+                services.AddSingleton<IFileService, FileService>();
+                services.AddSingleton<IConnectionManagerDialogService, ConnectionManagerDialogService>();
+                services.AddSingleton<IAppSettingsService, AppSettingsService>();
                 services.AddSingleton<DatabaseTreeViewModel>();
                 services.AddSingleton<DatabaseTreeView>();
                 services.AddTransient<ConnectionManagerViewModel>();
@@ -27,9 +32,10 @@ public partial class App
             .Build();
     }
 
-    protected override void OnStartup(StartupEventArgs e)
+    protected override async void OnStartup(StartupEventArgs e)
     {
-        StartApplication("LiteDB.Studio.Wpf", e);
+        // Await host startup to ensure services are ready before showing the UI.
+        await StartApplicationAsync("LiteDB.Studio.Wpf", e);
         ShowMainWindow();
     }
 

@@ -3,28 +3,62 @@ using Serilog;
 
 namespace LiteDB.Studio.Wpf.Services;
 
-public class LiteDbService : IDatabaseService
-{
-    private LiteDatabase? _db;
-    private readonly Lock _sync = new();
-
-    public bool IsConnected => _db != null;
-
-    public bool TransactionActive { get; private set; }
-
-    public event EventHandler<ConnectionStateChangedEventArgs>? ConnectionStateChanged;
-    public event EventHandler<TransactionStateChangedEventArgs>? TransactionStateChanged;
-
-    public void Dispose()
+public class LiteDbService : IDatabaseService, IAsyncDisposable
     {
-        DisconnectAsync().GetAwaiter().GetResult();
-    }
+        private LiteDatabase? _db;
+        private readonly Lock _sync = new();
 
-    public object? Database => _db;
+        public bool IsConnected => _db != null;
 
-    public void Disconnect()
-    {
-        DisconnectAsync().GetAwaiter().GetResult();
+        public bool TransactionActive { get; private set; }
+
+        public event EventHandler<ConnectionStateChangedEventArgs>? ConnectionStateChanged;
+        public event EventHandler<TransactionStateChangedEventArgs>? TransactionStateChanged;
+
+        public void Dispose()
+        {
+            // Perform synchronous disconnect without blocking on async calls
+            DoDisconnect();
+        }
+
+        public async ValueTask DisposeAsync()
+        {
+            // Support async disposal for callers who want to await it
+            await DisconnectAsync().ConfigureAwait(false);
+        }
+
+        public object? Database => _db;
+
+        public void Disconnect()
+        {
+            // Synchronous disconnect
+            DoDisconnect();
+        }
+
+        private void DoDisconnect()
+        {
+            if (!IsConnected)
+            {
+                return;
+            }
+
+            if (TransactionActive)
+            {
+                throw new InvalidOperationException("Transaction in progress (must commit or rollback before disconnecting).");
+            }
+
+            lock (_sync)
+            {
+                try
+                {
+                    _db?.Dispose();
+                }
+                finally
+                {
+                    _db = null;
+                    ConnectionStateChanged?.Invoke(this, new ConnectionStateChangedEventArgs(false));
+                }
+            }
     }
 
     public Task ConnectAsync(string connectionString, CancellationToken cancellationToken)
@@ -62,29 +96,8 @@ public class LiteDbService : IDatabaseService
 
     public Task DisconnectAsync()
     {
-        if (!IsConnected)
-        {
-            return Task.CompletedTask;
-        }
-
-        if (TransactionActive)
-        {
-            throw new InvalidOperationException("Transaction in progress (must commit or rollback before disconnecting).");
-        }
-
-        lock (_sync)
-        {
-            try
-            {
-                _db?.Dispose();
-            }
-            finally
-            {
-                _db = null;
-                ConnectionStateChanged?.Invoke(this, new ConnectionStateChangedEventArgs(false));
-            }
-        }
-
+        // Reuse synchronous disconnect implementation for now. This keeps the method fast and avoids sync-over-async.
+        DoDisconnect();
         return Task.CompletedTask;
     }
 

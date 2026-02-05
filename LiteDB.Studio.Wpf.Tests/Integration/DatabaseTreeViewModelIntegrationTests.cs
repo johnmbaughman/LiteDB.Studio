@@ -3,6 +3,7 @@ using System.Threading;
 using System.Threading.Tasks;
 using LiteDB.Studio.Wpf.Services;
 using LiteDB.Studio.Wpf.ViewModels;
+using NSubstitute;
 using Xunit;
 
 namespace LiteDB.Studio.Wpf.Tests.Integration;
@@ -25,7 +26,11 @@ public class DatabaseTreeViewModelIntegrationTests
         // create a test collection
         await service.ExecuteAsync("INSERT INTO test_collection VALUES { name: 'a' }", cts.Token);
 
-        var vm = new DatabaseTreeViewModel(service);
+        var vm = new DatabaseTreeViewModel(
+            service,
+            Substitute.For<IDialogService>(),
+            Substitute.For<IFileDialogService>(),
+            Substitute.For<IFileService>());
 
         // Act
         await vm.LoadRootNodesAsync(cts.Token);

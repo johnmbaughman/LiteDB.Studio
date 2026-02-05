@@ -22,7 +22,11 @@ public class DbTreeNodeTests
         };
         mockService.GetCollectionSchemaAsync("testCollection", CancellationToken.None).ReturnsForAnyArgs(schema);
 
-        var node = new DbTreeNode(mockService)
+        var dialogService = Substitute.For<IDialogService>();
+        var fileDialogService = Substitute.For<IFileDialogService>();
+        var fileService = Substitute.For<IFileService>();
+
+        var node = new DbTreeNode(mockService, dialogService, fileDialogService, fileService)
         {
             Header = "testCollection",
             Tag = "collection"
@@ -48,7 +52,11 @@ public class DbTreeNodeTests
         // Arrange
         string? inserted = null;
         IDatabaseService? mockService = Substitute.For<IDatabaseService>();
-        var node = new DbTreeNode(mockService, snippet => inserted = snippet)
+        var dialogService = Substitute.For<IDialogService>();
+        var fileDialogService = Substitute.For<IFileDialogService>();
+        var fileService = Substitute.For<IFileService>();
+
+        var node = new DbTreeNode(mockService, dialogService, fileDialogService, fileService, snippet => inserted = snippet)
         {
             Header = "system.$cols",
             Tag = "system"

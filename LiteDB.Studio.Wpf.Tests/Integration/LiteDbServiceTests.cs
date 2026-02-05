@@ -5,6 +5,7 @@ using System.Threading;
 using System.Threading.Tasks;
 using LiteDB.Studio.Wpf.Services;
 using LiteDB.Studio.Wpf.ViewModels;
+using NSubstitute;
 using Xunit;
 
 namespace LiteDB.Studio.Wpf.Tests.Integration;
@@ -111,8 +112,13 @@ public class LiteDbServiceTests : IDisposable
         IEnumerable<string> collectionsBefore = await _service.GetCollectionNamesAsync(cts.Token);
         Assert.Contains("test_drop_collection", collectionsBefore);
 
+        var dialogService = Substitute.For<IDialogService>();
+        dialogService.Confirm(Arg.Any<string>(), Arg.Any<string>(), Arg.Any<DialogIcon>()).Returns(true);
+        var fileDialogService = Substitute.For<IFileDialogService>();
+        var fileService = Substitute.For<IFileService>();
+
         // Create a DbTreeNode for the collection with a confirmer that always returns true
-        var node = new DbTreeNode(_service, confirmer: _ => true)
+        var node = new DbTreeNode(_service, dialogService, fileDialogService, fileService)
         {
             Header = "test_drop_collection",
             Tag = "collection"

@@ -1,8 +1,5 @@
-using System;
 using System.Threading;
 using System.Threading.Tasks;
-using LiteDB.Studio.Mvvm.ViewModels.Shell;
-using LiteDB.Studio.Mvvm.Views.Shell;
 using LiteDB.Studio.Wpf.Services;
 using LiteDB.Studio.Wpf.ViewModels;
 using NSubstitute;
@@ -27,7 +24,9 @@ public class MainViewModelTests
         var vm = new MainViewModel(
             mockDbService,
             CreateTreeViewModel(mockDbService),
-            Substitute.For<IServiceProvider>()) {
+            Substitute.For<IConnectionManagerDialogService>(),
+            Substitute.For<IDialogService>(),
+            Substitute.For<IAppSettingsService>()) {
             // Since ConnectCommand shows a dialog, we can't easily test the full flow
             // Instead, test that the service connection sets IsConnected
             IsConnected = true // Simulate successful connection
@@ -38,13 +37,37 @@ public class MainViewModelTests
     }
 
     [Fact]
+    public void Initialize_PopulatesRecentDatabases_FromAppSettingsService()
+    {
+        IDatabaseService? mockDbService = Substitute.For<IDatabaseService>();
+        var settings = new LiteDB.Studio.Wpf.Util.ApplicationSettings();
+        settings.RecentConnectionStrings.Add(new ConnectionString("test.db"));
+
+        var appSettings = Substitute.For<IAppSettingsService>();
+        appSettings.ApplicationSettings.Returns(settings);
+
+        var vm = new MainViewModel(
+            mockDbService,
+            CreateTreeViewModel(mockDbService),
+            Substitute.For<IConnectionManagerDialogService>(),
+            Substitute.For<IDialogService>(),
+            appSettings);
+
+        vm.Initialize();
+
+        Assert.Contains("test.db", vm.RecentDatabases);
+    }
+
+    [Fact]
     public void RunCommand_DelegatesToSelectedTab()
     {
         IDatabaseService? mockDbService = Substitute.For<IDatabaseService>();
         var vm = new MainViewModel(
             mockDbService,
             CreateTreeViewModel(mockDbService),
-            Substitute.For<IServiceProvider>());
+            Substitute.For<IConnectionManagerDialogService>(),
+            Substitute.For<IDialogService>(),
+            Substitute.For<IAppSettingsService>());
 
         TabViewModel? mockTab = Substitute.For<TabViewModel>(mockDbService);
         vm.Tabs.Add(mockTab);
@@ -63,7 +86,9 @@ public class MainViewModelTests
         var vm = new MainViewModel(
             mockDbService,
             CreateTreeViewModel(mockDbService),
-            Substitute.For<IServiceProvider>());
+            Substitute.For<IConnectionManagerDialogService>(),
+            Substitute.For<IDialogService>(),
+            Substitute.For<IAppSettingsService>());
 
         // Initially there's only the plus tab
         Assert.Single(vm.Tabs);
@@ -84,7 +109,9 @@ public class MainViewModelTests
         var vm = new MainViewModel(
             mockDbService,
             CreateTreeViewModel(mockDbService),
-            Substitute.For<IServiceProvider>());
+            Substitute.For<IConnectionManagerDialogService>(),
+            Substitute.For<IDialogService>(),
+            Substitute.For<IAppSettingsService>());
 
         TabViewModel? mockTab = Substitute.For<TabViewModel>(mockDbService);
         mockTab.EditorText = "SELECT * FROM users; SELECT * FROM products;";
@@ -102,6 +129,10 @@ public class MainViewModelTests
     private static DatabaseTreeViewModel CreateTreeViewModel(
         IDatabaseService databaseService)
     {
-        return new DatabaseTreeViewModel(databaseService);
+        return new DatabaseTreeViewModel(
+            databaseService,
+            Substitute.For<IDialogService>(),
+            Substitute.For<IFileDialogService>(),
+            Substitute.For<IFileService>());
     }
 }

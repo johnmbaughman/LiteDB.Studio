@@ -4,6 +4,7 @@ using System.Windows.Controls.Primitives;
 using System.Windows.Data;
 using System.Windows.Input;
 using System.ComponentModel;
+using System.Globalization;
 using System.Windows.Media;
 using LiteDB.Studio.Wpf.ViewModels;
 using Serilog;
@@ -49,19 +50,74 @@ public partial class ResultGrid
 
         UpdateColumnsFromViewModel(viewModel);
         viewModel.Columns.CollectionChanged += (_, _) => UpdateColumnsFromViewModel(viewModel);
+
+        // Also track QueryResult changes to refresh rows
+        viewModel.PropertyChanged += (_, e) =>
+        {
+            if (e.PropertyName == nameof(ResultGridViewModel.QueryResult))
+            {
+                ResultsDataGrid.ItemsSource = viewModel.QueryResult?.Rows;
+            }
+        };
     }
 
     private void UpdateColumnsFromViewModel(ResultGridViewModel viewModel)
     {
         ResultsDataGrid.Columns.Clear();
         _columnNames.Clear();
-        foreach (DataGridColumn col in viewModel.Columns)
+
+        var converter = new LiteDB.Studio.Wpf.Util.BsonValueToStringConverter();
+
+        foreach (var desc in viewModel.Columns)
         {
-            // Allow user resizing per column and add to grid
-            col.CanUserResize = true;
-            ResultsDataGrid.Columns.Add(col);
+            var binding = new Binding($"[{desc.Name}]") { Converter = converter };
+            var tooltipBinding = new Binding($"[{desc.Name}]") { Converter = converter, ConverterParameter = "full" };
+
+            var dataGridColumn = new DataGridTextColumn
+            {
+                Header = desc.Header,
+                Binding = binding
+            };
+
+            var style = new Style(typeof(TextBlock));
+            style.Setters.Add(new Setter(FrameworkElement.ToolTipProperty, tooltipBinding));
+            // Slightly larger padding for improved readability
+            style.Setters.Add(new Setter(TextBlock.PaddingProperty, new Thickness(3,3,3,3)));
+            // Ensure long text is trimmed with an ellipsis when cell width is constrained
+            style.Setters.Add(new Setter(TextBlock.TextTrimmingProperty, TextTrimming.CharacterEllipsis));
+            style.Setters.Add(new Setter(TextBlock.TextWrappingProperty, TextWrapping.NoWrap));
+            dataGridColumn.ElementStyle = style;
+
+            // Allow user resizing per column
+            dataGridColumn.CanUserResize = true;
+
+            // Ensure header displays raw column name (preserve underscores and exact text)
+            // Avoid using raw string as Header to prevent access-key underscore processing
+            if (dataGridColumn.Header is string headerText)
+            {
+                dataGridColumn.Header = new TextBlock { Text = headerText };
+            }
+
+            ResultsDataGrid.Columns.Add(dataGridColumn);
+
             // store the logical column name for sorting and header restoration
-            _columnNames[col] = col.Header?.ToString() ?? string.Empty;
+            // If column header was replaced with TextBlock above, use its Text property
+            _columnNames[dataGridColumn] = (dataGridColumn.Header is TextBlock tb) ? tb.Text : (dataGridColumn.Header?.ToString() ?? string.Empty);
+
+            // Measure header text and set MinWidth so the column cannot be narrower than the header
+            try
+            {
+                var header = _columnNames[dataGridColumn];
+                DpiScale dpi = VisualTreeHelper.GetDpi(this);
+                var typeface = new Typeface(ResultsDataGrid.FontFamily, ResultsDataGrid.FontStyle, ResultsDataGrid.FontWeight, ResultsDataGrid.FontStretch);
+                var ft = new FormattedText(header, CultureInfo.CurrentUICulture, FlowDirection.LeftToRight, typeface, ResultsDataGrid.FontSize, Brushes.Black, dpi.PixelsPerDip);
+                // Add padding allowance to account for cell padding and sort glyphs
+                dataGridColumn.MinWidth = Math.Ceiling(ft.Width) + 24.0;
+            }
+            catch
+            {
+                // ignore measurement errors and retain default MinWidth
+            }
         }
 
         // Adjust column widths based on content (similar to WinForms behaviour):
@@ -278,6 +334,9 @@ public partial class ResultGrid
     // Temporarily store the index of the row that was last clicked by the user so SelectionChanged can prefer it.
     private int? _lastClickedIndexOverride;
     private readonly Dictionary<DataGridColumn, string> _columnNames = new();
+    
+    // Map to track the descriptor -> created data grid column if needed in future
+    private readonly Dictionary<ColumnDescriptor, DataGridColumn> _descriptorColumns = new();
 
     private void ResultsDataGrid_RowHeaderMouseLeftButtonDown(object? sender, MouseButtonEventArgs e)
     {
@@ -486,9 +545,10 @@ public partial class ResultGrid
             {
                 try
                 {
-                    var w = Math.Min(col.ActualWidth, 400.0);
+                    var measured = Math.Min(col.ActualWidth, 400.0);
                     // Fix pixel width but allow users to resize later
-                    col.Width = new DataGridLength(w, DataGridLengthUnitType.Pixel);
+                    var finalWidth = Math.Max(measured, col.MinWidth);
+                            col.Width = new DataGridLength(finalWidth, DataGridLengthUnitType.Pixel);
                     col.CanUserResize = true;
                 }
                 catch (Exception ex)

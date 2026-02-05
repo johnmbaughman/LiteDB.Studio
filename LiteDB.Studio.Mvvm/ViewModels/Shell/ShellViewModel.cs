@@ -8,6 +8,18 @@ namespace LiteDB.Studio.Mvvm.ViewModels.Shell;
 /// </summary>
 public partial class ShellViewModel : ViewModel, IShellViewModel {
     /// <summary>
+    /// Shell window title shown in the Window chrome.
+    /// </summary>
+    [ObservableProperty]
+    private string _title = "LiteDB Studio";
+
+    /// <summary>
+    /// Icon URI for the Shell window. Use a pack URI pointing at the project's resources.
+    /// </summary>
+    [ObservableProperty]
+    private string _iconUri = "pack://application:,,,/LiteDB.Studio.Wpf;component/Resources/litedb_icon.ico";
+
+    /// <summary>
     /// Gets or sets the main content view model.
     /// </summary>
     /// <value>The main content view model.</value>

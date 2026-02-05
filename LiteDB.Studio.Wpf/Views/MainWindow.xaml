@@ -9,15 +9,12 @@
     xmlns:local="clr-namespace:LiteDB.Studio.Wpf.ViewModels"
     xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
     xmlns:util="clr-namespace:LiteDB.Studio.Wpf.Util"
-    xmlns:views="clr-namespace:LiteDB.Studio.Wpf.Views"
-    Width="900"
-    Height="600"
+    MinWidth="900"
+    MinHeight="600"
+    HorizontalAlignment="Stretch"
+    VerticalAlignment="Stretch"
     d:DataContext="{d:DesignInstance}"
     mc:Ignorable="d">
-    <!-- TODO: Implement WinForms-style Title and Icon 
-        Title="LiteDB Studio (WPF)"
-        Icon="pack://application:,,,/LiteDB.Studio.Wpf;component/Resources/litedb_icon.png"
-    -->
 
     <UserControl.InputBindings>
         <KeyBinding Key="F5" Command="{Binding RunCommand}" />
@@ -324,7 +321,42 @@
                 <TabControl.ItemTemplate>
                     <DataTemplate DataType="{x:Type local:TabViewModel}">
                         <StackPanel Orientation="Horizontal">
-                            <TextBlock Margin="4,0" Text="{Binding Title}" />
+                            <TextBlock
+                                Margin="4,0"
+                                VerticalAlignment="Center"
+                                Text="{Binding Title}" />
+                            <Button
+                                Width="16"
+                                Height="16"
+                                Margin="6,0,0,0"
+                                Command="{Binding DataContext.CloseTabCommand, RelativeSource={RelativeSource AncestorType=TabControl}}"
+                                CommandParameter="{Binding}"
+                                ToolTip="Close tab">
+                                <Button.Style>
+                                    <Style TargetType="Button">
+                                        <Setter Property="Template">
+                                            <Setter.Value>
+                                                <ControlTemplate TargetType="Button">
+                                                    <Border Background="Transparent">
+                                                        <TextBlock
+                                                            HorizontalAlignment="Center"
+                                                            VerticalAlignment="Center"
+                                                            FontWeight="Bold"
+                                                            Foreground="Gray"
+                                                            Text="✕" />
+                                                    </Border>
+                                                </ControlTemplate>
+                                            </Setter.Value>
+                                        </Setter>
+                                        <Setter Property="Visibility" Value="Visible" />
+                                        <Style.Triggers>
+                                            <DataTrigger Binding="{Binding IsPlus}" Value="True">
+                                                <Setter Property="Visibility" Value="Collapsed" />
+                                            </DataTrigger>
+                                        </Style.Triggers>
+                                    </Style>
+                                </Button.Style>
+                            </Button>
                         </StackPanel>
                     </DataTemplate>
                 </TabControl.ItemTemplate>
@@ -347,7 +379,8 @@
                                 behaviors:AvalonEditBehaviors.SelectionLength="{Binding SelectionLength, Mode=TwoWay}"
                                 behaviors:AvalonEditBehaviors.SelectionStart="{Binding SelectionStart, Mode=TwoWay}"
                                 behaviors:AvalonEditBehaviors.ShowCompletionCommand="{Binding ShowCompletionCommand}"
-                                ShowLineNumbers="True" />
+                                ShowLineNumbers="True"
+                                SyntaxHighlighting="SQL" />
 
                             <!--  Splitter between editor and results (placed at parent grid row 1)  -->
                             <GridSplitter

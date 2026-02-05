@@ -1,6 +1,6 @@
 using CommunityToolkit.Mvvm.ComponentModel;
 using CommunityToolkit.Mvvm.Input;
-using Microsoft.Win32;
+using LiteDB.Studio.Wpf.Services;
 using System.Windows.Input;
 
 namespace LiteDB.Studio.Wpf.ViewModels;
@@ -13,6 +13,7 @@ public enum ConnectionMode
 
 public class ConnectionManagerViewModel : ObservableObject
 {
+    private readonly IFileDialogService _fileDialogService;
     private ConnectionMode _mode = ConnectionMode.Direct;
     private string _filename = string.Empty;
     private string _password = string.Empty;
@@ -39,8 +40,9 @@ public class ConnectionManagerViewModel : ObservableObject
     public ICommand CancelCommand { get; }
     public ICommand BrowseCommand { get; }
 
-    public ConnectionManagerViewModel()
+    public ConnectionManagerViewModel(IFileDialogService fileDialogService)
     {
+        _fileDialogService = fileDialogService ?? throw new ArgumentNullException(nameof(fileDialogService));
         ConnectCommand = new RelayCommand(OnConnect);
         CancelCommand = new RelayCommand(OnCancel);
         BrowseCommand = new RelayCommand(OnBrowse);
@@ -58,16 +60,15 @@ public class ConnectionManagerViewModel : ObservableObject
 
     private void OnBrowse()
     {
-        var dlg = new OpenFileDialog()
+        var filename = _fileDialogService.OpenFile(new OpenFileDialogOptions
         {
             Filter = "LiteDB files (*.db)|*.db|All files (*.*)|*.*",
             Title = "Open LiteDB file"
-        };
+        });
 
-        var res = dlg.ShowDialog();
-        if (res == true)
+        if (!string.IsNullOrWhiteSpace(filename))
         {
-            Filename = dlg.FileName;
+            Filename = filename;
         }
     }
 }

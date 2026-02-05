@@ -20,4 +20,14 @@ public interface IShellViewModel : IViewModel {
     /// <value>The main shell content view model.</value>
     // TODO: But why? - Ryan Reynolds
     IShellContentViewModel MainContentViewModel { get; }
+
+    /// <summary>
+    /// Gets or sets the window title shown in the shell window chrome.
+    /// </summary>
+    string Title { get; set; }
+
+    /// <summary>
+    /// Gets or sets the pack URI string for the window icon.
+    /// </summary>
+    string IconUri { get; set; }
 }

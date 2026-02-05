@@ -22,7 +22,11 @@ public class DatabaseTreeViewModelTests
         mockService.GetCollectionNamesAsync(CancellationToken.None).ReturnsForAnyArgs(["collection1", "collection2"]);
         mockService.GetSystemCollectionNamesAsync(CancellationToken.None).ReturnsForAnyArgs(["system1", "system2"]);
 
-        var viewModel = new DatabaseTreeViewModel(mockService);
+        var dialogService = Substitute.For<IDialogService>();
+        var fileDialogService = Substitute.For<IFileDialogService>();
+        var fileService = Substitute.For<IFileService>();
+
+        var viewModel = new DatabaseTreeViewModel(mockService, dialogService, fileDialogService, fileService);
 
         // Act
         await viewModel.LoadRootNodesAsync();
@@ -71,7 +75,11 @@ public class DatabaseTreeViewModelTests
         mockService.GetCollectionNamesAsync(CancellationToken.None).ReturnsForAnyArgs(["collection1", "system1"]);
         mockService.GetSystemCollectionNamesAsync(CancellationToken.None).ReturnsForAnyArgs(["system1", "system2"]);
 
-        var viewModel = new DatabaseTreeViewModel(mockService);
+        var dialogService = Substitute.For<IDialogService>();
+        var fileDialogService = Substitute.For<IFileDialogService>();
+        var fileService = Substitute.For<IFileService>();
+
+        var viewModel = new DatabaseTreeViewModel(mockService, dialogService, fileDialogService, fileService);
 
         // Act
         await viewModel.LoadRootNodesAsync();

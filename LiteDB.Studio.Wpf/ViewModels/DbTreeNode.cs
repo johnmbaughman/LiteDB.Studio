@@ -2,15 +2,21 @@ using CommunityToolkit.Mvvm.ComponentModel;
 using CommunityToolkit.Mvvm.Input;
 using LiteDB.Studio.Wpf.Services;
 using System.Collections.ObjectModel;
-using System.Windows;
-using Microsoft.Win32;
-using System.IO;
 
 namespace LiteDB.Studio.Wpf.ViewModels;
 
-public partial class DbTreeNode(IDatabaseService databaseService, Action<string>? insertSnippetAction = null, Func<string, bool>? confirmer = null) : ObservableObject
+public partial class DbTreeNode(
+    IDatabaseService databaseService,
+    IDialogService dialogService,
+    IFileDialogService fileDialogService,
+    IFileService fileService,
+    Action<string>? insertSnippetAction = null) : ObservableObject
 {
     private readonly IDatabaseService _databaseService = databaseService ?? throw new ArgumentNullException(nameof(databaseService));
+    private readonly IDialogService _dialogService = dialogService ?? throw new ArgumentNullException(nameof(dialogService));
+    private readonly IFileDialogService _fileDialogService = fileDialogService ?? throw new ArgumentNullException(nameof(fileDialogService));
+    private readonly IFileService _fileService = fileService ?? throw new ArgumentNullException(nameof(fileService));
+    private readonly Action<string>? _insertSnippetAction = insertSnippetAction;
 
     public string Header { get; set; } = string.Empty;
 
@@ -41,7 +47,7 @@ public partial class DbTreeNode(IDatabaseService databaseService, Action<string>
             IEnumerable<ColumnInfo> schema = await _databaseService.GetCollectionSchemaAsync(Header, CancellationToken.None);
             foreach (ColumnInfo column in schema)
             {
-                var childNode = new DbTreeNode(_databaseService)
+                var childNode = new DbTreeNode(_databaseService, _dialogService, _fileDialogService, _fileService)
                 {
                     Header = column.Name,
                     Tag = "field",
@@ -62,7 +68,7 @@ public partial class DbTreeNode(IDatabaseService databaseService, Action<string>
         }
 
         var message = $"Are you sure you want to drop the collection '{Header}'? This action cannot be undone.";
-        var confirmed = confirmer?.Invoke(message) ?? (MessageBox.Show(message, "Confirm Drop", MessageBoxButton.YesNo, MessageBoxImage.Warning) == MessageBoxResult.Yes);
+        var confirmed = _dialogService.Confirm(message, "Confirm Drop", DialogIcon.Warning);
         if (!confirmed) {
             return;
         }
@@ -80,14 +86,14 @@ public partial class DbTreeNode(IDatabaseService databaseService, Action<string>
             return;
         }
 
-        var saveFileDialog = new SaveFileDialog
+        var filename = _fileDialogService.SaveFile(new SaveFileDialogOptions
         {
             Title = $"Export {Header} collection",
             Filter = "JSON files (*.json)|*.json|All files (*.*)|*.*",
             FileName = $"{Header}.json"
-        };
+        });
 
-        if (saveFileDialog.ShowDialog() != true) {
+        if (string.IsNullOrWhiteSpace(filename)) {
             return;
         }
 
@@ -96,7 +102,7 @@ public partial class DbTreeNode(IDatabaseService databaseService, Action<string>
 
         // Export to JSON
         var json = System.Text.Json.JsonSerializer.Serialize(result.Rows, new System.Text.Json.JsonSerializerOptions { WriteIndented = true });
-        await File.WriteAllTextAsync(saveFileDialog.FileName, json);
+        await _fileService.WriteAllTextAsync(filename, json);
     }
 
     [RelayCommand]
@@ -113,6 +119,6 @@ public partial class DbTreeNode(IDatabaseService databaseService, Action<string>
             // For field, perhaps insert the field name
             Header;
 
-        insertSnippetAction?.Invoke(snippet);
+        _insertSnippetAction?.Invoke(snippet);
     }
 }
