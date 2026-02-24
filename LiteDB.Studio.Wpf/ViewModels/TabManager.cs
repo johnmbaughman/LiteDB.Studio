@@ -1,20 +1,23 @@
 using System.Collections.ObjectModel;
 using CommunityToolkit.Mvvm.ComponentModel;
 using LiteDB.Studio.Wpf.Services;
+using Microsoft.Extensions.Logging;
 
 namespace LiteDB.Studio.Wpf.ViewModels;
 
 public sealed partial class TabManager : ObservableObject
 {
     private readonly IDatabaseService _databaseService;
+    private readonly ILoggerFactory _loggerFactory;
 
     private TabViewModel? _selectedTab;
 
-    public TabManager(IDatabaseService databaseService)
+    public TabManager(IDatabaseService databaseService, ILoggerFactory loggerFactory)
     {
         _databaseService = databaseService ?? throw new ArgumentNullException(nameof(databaseService));
+        _loggerFactory = loggerFactory ?? throw new ArgumentNullException(nameof(loggerFactory));
 
-        Tabs = [new TabViewModel(_databaseService) { Title = "+", IsPlus = true }];
+        Tabs = [new TabViewModel(_databaseService, _loggerFactory) { Title = "+", IsPlus = true }];
     }
 
     public ObservableCollection<TabViewModel> Tabs { get; }
@@ -42,7 +45,7 @@ public sealed partial class TabManager : ObservableObject
 
     public void AddNewTab()
     {
-        var newTab = new TabViewModel(_databaseService) { Title = $"Query {Tabs.Count}" };
+        var newTab = new TabViewModel(_databaseService, _loggerFactory) { Title = $"Query {Tabs.Count}" };
 
         // insert before plus tab
         TabViewModel? plus = Tabs.FirstOrDefault(t => t.Title == "+");
@@ -136,7 +139,7 @@ public sealed partial class TabManager : ObservableObject
         {
             // insert new tab before plus
             TabViewModel? plus = Tabs.FirstOrDefault(t => t.Title == "+");
-            var newTab = new TabViewModel(_databaseService) { Title = $"Query {Tabs.Count}", EditorText = sql.Replace("\\n", "\n") };
+            var newTab = new TabViewModel(_databaseService, _loggerFactory) { Title = $"Query {Tabs.Count}", EditorText = sql.Replace("\\n", "\n") };
             if (plus != null)
             {
                 var idx = Tabs.IndexOf(plus);

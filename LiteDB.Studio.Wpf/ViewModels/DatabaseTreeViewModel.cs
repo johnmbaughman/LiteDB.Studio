@@ -1,7 +1,7 @@
 using CommunityToolkit.Mvvm.ComponentModel;
 using CommunityToolkit.Mvvm.Input;
 using LiteDB.Studio.Wpf.Services;
-using Serilog;
+using Microsoft.Extensions.Logging;
 using System.Collections.ObjectModel;
 using System.Collections.Specialized;
 using LiteDB.Studio.Mvvm.ViewModels;
@@ -22,7 +22,8 @@ public partial class DatabaseTreeViewModel : ViewModel
         IDatabaseService databaseService,
         IDialogService dialogService,
         IFileDialogService fileDialogService,
-        IFileService fileService)
+        IFileService fileService,
+        ILogger<DatabaseTreeViewModel> logger) : base(logger)
     {
         _databaseService = databaseService ?? throw new ArgumentNullException(nameof(databaseService));
         _dialogService = dialogService ?? throw new ArgumentNullException(nameof(dialogService));
@@ -116,7 +117,7 @@ public partial class DatabaseTreeViewModel : ViewModel
         }
         catch (Exception ex)
         {
-            Log.Error(ex, "Exception recalculating counts: {Message}", ex.Message);
+            Logger.LogError(ex, "Exception recalculating counts: {Message}", ex.Message);
         }
     }
     public async Task LoadRootNodesAsync(CancellationToken cancellationToken = default)
@@ -131,7 +132,7 @@ public partial class DatabaseTreeViewModel : ViewModel
             // Remove any names reported as system collections to avoid duplicates and miscategorization
             collectionNames = collectionNames.Except(systemCollectionNames).ToList();
 
-            Log.Debug("Loading database tree - collections: {Count}, system: {SystemCount}", collectionNames.Count, systemCollectionNames.Count);
+            Logger.LogDebug("Loading database tree - collections: {Count}, system: {SystemCount}", collectionNames.Count, systemCollectionNames.Count);
 
             Action<string> insertSnippet = snippet => InsertSnippetRequested?.Invoke(this, snippet);
 
@@ -184,7 +185,7 @@ public partial class DatabaseTreeViewModel : ViewModel
         }
         catch (Exception ex)
         {
-            Log.Error(ex, "Failed to load root nodes");
+            Logger.LogError(ex, "Failed to load root nodes");
             throw;
         }
     }

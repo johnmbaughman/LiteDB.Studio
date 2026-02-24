@@ -16,8 +16,9 @@ public partial class App
         AppHost = Host.CreateDefaultBuilder()
             .ConfigureLogging()
             .ConfigureUi<MainWindow, MainViewModel>()
-            .ConfigureServices((_, services) =>
+            .ConfigureServices((context, services) =>
             {
+                services.Configure<LiteDbOptions>(context.Configuration.GetSection("LiteDb"));
                 services.AddSingleton<IDatabaseService, LiteDbService>();
                 services.AddSingleton<IDialogService, DialogService>();
                 services.AddSingleton<IFileDialogService, FileDialogService>();

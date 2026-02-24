@@ -223,7 +223,7 @@ public static class AvalonEditBehaviors
 
     private static void EnsureHandlers(TextEditor editor)
     {
-        if (_states.TryGetValue(editor, out EditorState _))
+        if (_states.TryGetValue(editor, out EditorState? _))
         {
             return;
         }

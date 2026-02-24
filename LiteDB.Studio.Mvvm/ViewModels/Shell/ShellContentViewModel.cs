@@ -11,7 +11,7 @@ public abstract class ShellContentViewModel : ViewModel, IShellContentViewModel 
     /// <summary>
     /// Initializes a new instance of the <see cref="ShellContentViewModel"/> class.
     /// </summary>
-    protected ShellContentViewModel() { }
+    protected ShellContentViewModel(Microsoft.Extensions.Logging.ILogger logger) : base(logger) { }
 
     public IShellViewModel ShellViewModel {
         get => _shellViewModel;

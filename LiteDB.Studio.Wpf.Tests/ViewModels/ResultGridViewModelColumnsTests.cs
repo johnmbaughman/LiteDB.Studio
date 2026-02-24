@@ -1,6 +1,8 @@
 using System.Linq;
 using LiteDB.Studio.Wpf.Services;
 using LiteDB.Studio.Wpf.ViewModels;
+using Microsoft.Extensions.Logging;
+using Microsoft.Extensions.Logging.Abstractions;
 using Xunit;
 
 namespace LiteDB.Studio.Wpf.Tests.ViewModels;
@@ -12,7 +14,7 @@ public class ResultGridViewModelColumnsTests
     {
         // Arrange
         var mockDb = NSubstitute.Substitute.For<LiteDB.Studio.Wpf.Services.IDatabaseService>();
-        var vm = new ResultGridViewModel(mockDb);
+        var vm = new ResultGridViewModel(mockDb, NullLogger<ResultGridViewModel>.Instance);
 
         var result = new QueryResult
         {

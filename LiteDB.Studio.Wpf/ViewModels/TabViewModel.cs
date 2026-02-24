@@ -1,12 +1,14 @@
 using CommunityToolkit.Mvvm.ComponentModel;
 using CommunityToolkit.Mvvm.Input;
 using LiteDB.Studio.Wpf.Services;
+using Microsoft.Extensions.Logging;
 
 namespace LiteDB.Studio.Wpf.ViewModels;
 
 public partial class TabViewModel : ObservableObject
 {
     private readonly IDatabaseService _databaseService;
+    private readonly ILogger<TabViewModel> _logger;
 
     [ObservableProperty]
     private string _title = string.Empty;
@@ -50,12 +52,13 @@ public partial class TabViewModel : ObservableObject
     [ObservableProperty]
     private IEnumerable<CompletionItem>? _lastCompletions;
 
-    public TabViewModel(IDatabaseService databaseService)
+    public TabViewModel(IDatabaseService databaseService, ILoggerFactory loggerFactory)
     {
         _databaseService = databaseService ?? throw new ArgumentNullException(nameof(databaseService));
+        _logger = (loggerFactory ?? throw new ArgumentNullException(nameof(loggerFactory))).CreateLogger<TabViewModel>();
         RunCommand = new AsyncRelayCommand(ExecuteRunAsync);
         ShowCompletionCommand = new AsyncRelayCommand(ExecuteShowCompletionAsync);
-        ResultGridViewModel = new ResultGridViewModel(_databaseService);
+        ResultGridViewModel = new ResultGridViewModel(_databaseService, loggerFactory.CreateLogger<ResultGridViewModel>());
         CloseCommand = new RelayCommand(ExecuteClose);
     }
 
@@ -77,16 +80,16 @@ public partial class TabViewModel : ObservableObject
                 // Execute entire buffer
                 EditorText;
 
-            Serilog.Log.Information("Executing query from Tab '{Title}' (len={Len})", Title, query.Length);
+            _logger.LogInformation("Executing query from Tab '{Title}' (len={Len})", Title, query.Length);
             QueryResult result = await _databaseService.ExecuteAsync(query, cancellationToken);
             LastResult = result;
             IsResultLoaded = true;
             SelectedResultTabIndex = 0; // show Grid tab when results are available
-            Serilog.Log.Information("Query executed - Rows: {Count}, Columns: {Cols}", result.RowCount, result.Columns.Count);
+            _logger.LogInformation("Query executed - Rows: {Count}, Columns: {Cols}", result.RowCount, result.Columns.Count);
         }
         catch (Exception ex)
         {
-            Serilog.Log.Warning(ex, "Query execution failed in Tab '{Title}'", Title);
+            _logger.LogWarning(ex, "Query execution failed in Tab '{Title}'", Title);
             LastError = ex.Message;
             IsResultLoaded = false;
         }

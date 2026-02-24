@@ -75,7 +75,7 @@ The WPF project is functional but contains MVVM boundary violations, synchronous
 
 ---
 
-### 6) Remove direct Serilog usage from core MVVM abstractions
+### 6) Remove direct Serilog usage from core MVVM abstractions ✅ Done
 **Why:** IViewModel and ViewModel require Serilog directly, which bakes in a logging framework. This also hides the dependency and makes unit tests harder.
 
 **Refactor:** Replace Serilog dependency with Microsoft.Extensions.Logging abstractions (ILogger<T>) and inject loggers at the ViewModel level. Keep Serilog only in composition root.
@@ -115,7 +115,7 @@ The WPF project is functional but contains MVVM boundary violations, synchronous
 
 ## Low-Priority Refactor Opportunities
 
-### 9) Configuration for row limits and timeouts
+### 9) Configuration for row limits and timeouts ✅ Done
 **Why:** Max rows (1000) and other behavior are hard-coded in LiteDbService.
 
 **Refactor:** Move to configuration options (appsettings.json or options pattern). This provides user control and easier testing.
@@ -126,7 +126,7 @@ The WPF project is functional but contains MVVM boundary violations, synchronous
 
 ---
 
-### 10) Improve cohesion of tab management logic
+### 10) Improve cohesion of tab management logic (Done)
 **Why:** MainViewModel handles multiple concerns (tabs, recent files, connection flow, UI title updates).
 
 **Refactor:** Extract tab management into a dedicated service or child ViewModel. Keep MainViewModel as orchestrator.
@@ -136,7 +136,7 @@ The WPF project is functional but contains MVVM boundary violations, synchronous
 
 ---
 
-### 11) Reduce duplication in connection flows
+### 11) Reduce duplication in connection flows (Done)
 **Why:** Connection logic is duplicated between ConnectAsync and OpenRecentAsync.
 
 **Refactor:** Extract common connection logic to a single method to ensure consistent behavior and state updates.
@@ -146,7 +146,7 @@ The WPF project is functional but contains MVVM boundary violations, synchronous
 
 ---
 
-### 12) Improve MVVM abstractions for design mode detection
+### 12) Improve MVVM abstractions for design mode detection (Done)
 **Why:** ViewModel.InDesignMode uses Debugger.IsAttached, which is not an accurate design-mode indicator in WPF.
 
 **Refactor:** Use DesignerProperties.GetIsInDesignMode or a dedicated IDesignModeService.
@@ -162,7 +162,7 @@ The WPF project is functional but contains MVVM boundary violations, synchronous
 3) Refactor ResultGridViewModel to use UI-agnostic column descriptors.
 4) Clean up LiteDbService disposal and blocking calls; update app shutdown and LiteDbStudioApplication startup.
 5) Migrate code-behind behavior into commands/behaviors.
-6) Replace Serilog in MVVM base types with ILogger<T> and update DI.
+6) ✅ Replace Serilog in MVVM base types with ILogger<T> and update DI.
 7) Remove View references from ViewModels and replace with services or messaging.
 
 ## Test Impact / Opportunities

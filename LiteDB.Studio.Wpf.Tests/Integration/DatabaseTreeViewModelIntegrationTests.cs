@@ -3,6 +3,8 @@ using System.Threading;
 using System.Threading.Tasks;
 using LiteDB.Studio.Wpf.Services;
 using LiteDB.Studio.Wpf.ViewModels;
+using Microsoft.Extensions.Logging;
+using Microsoft.Extensions.Logging.Abstractions;
 using NSubstitute;
 using Xunit;
 
@@ -30,7 +32,8 @@ public class DatabaseTreeViewModelIntegrationTests
             service,
             Substitute.For<IDialogService>(),
             Substitute.For<IFileDialogService>(),
-            Substitute.For<IFileService>());
+            Substitute.For<IFileService>(),
+            NullLogger<DatabaseTreeViewModel>.Instance);
 
         // Act
         await vm.LoadRootNodesAsync(cts.Token);

@@ -1,5 +1,6 @@
 using CommunityToolkit.Mvvm.ComponentModel;
 using LiteDB.Studio.Mvvm.Views.Shell;
+using Microsoft.Extensions.Logging;
 
 namespace LiteDB.Studio.Mvvm.ViewModels.Shell;
 
@@ -31,7 +32,8 @@ public partial class ShellViewModel : ViewModel, IShellViewModel {
     /// Initializes a new instance of the <see cref="ShellViewModel" /> class.
     /// </summary>
     /// <param name="mainContentView">The main content view.</param>
-    public ShellViewModel(IShellContentView mainContentView) {
+    /// <param name="logger">Logger for this view model.</param>
+    public ShellViewModel(IShellContentView mainContentView, ILogger<ShellViewModel> logger) : base(logger) {
         MainContentView = mainContentView;
         MainContentViewModel = MainContentView.ShellContentViewModel;
     }

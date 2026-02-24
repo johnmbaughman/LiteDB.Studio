@@ -1,14 +1,21 @@
 // unset:none
 
 using System.Diagnostics;
+using Microsoft.Extensions.Options;
 using Serilog;
 
 namespace LiteDB.Studio.Wpf.Services;
 
 public class LiteDbService : IDatabaseService, IAsyncDisposable
 {
+    private readonly int _maxRows;
     private LiteDatabase? _db;
     private readonly Lock _sync = new();
+
+    public LiteDbService(IOptions<LiteDbOptions>? options = null)
+    {
+        _maxRows = options?.Value.MaxRows ?? LiteDbOptions.DefaultMaxRows;
+    }
 
     public bool IsConnected => _db != null;
 
@@ -121,7 +128,6 @@ public class LiteDbService : IDatabaseService, IAsyncDisposable
             var columns = new List<ColumnInfo>();
             var rows = new List<object>();
             var rowCount = 0;
-            const int maxRows = 1000;
             var limitExceeded = false;
 
             // Read first row to infer columns
@@ -144,7 +150,7 @@ public class LiteDbService : IDatabaseService, IAsyncDisposable
             }
 
             // Read remaining rows up to limit
-            while (reader.Read() && rowCount < maxRows)
+            while (reader.Read() && rowCount < _maxRows)
             {
                 var doc = reader.Current as BsonDocument;
                 if (doc != null)

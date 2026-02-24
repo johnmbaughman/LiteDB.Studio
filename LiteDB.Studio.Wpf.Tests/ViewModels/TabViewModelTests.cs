@@ -1,6 +1,8 @@
 using System.Threading;
 using System.Threading.Tasks;
 using LiteDB.Studio.Wpf.Services;
+using Microsoft.Extensions.Logging;
+using Microsoft.Extensions.Logging.Abstractions;
 using NSubstitute;
 using Xunit;
 
@@ -16,7 +18,7 @@ public class TabViewModelTests
         mock.ExecuteAsync(Arg.Any<string>(), Arg.Any<CancellationToken>())
             .Returns(expectedResult);
 
-        var vm = new Wpf.ViewModels.TabViewModel(mock);
+        var vm = new Wpf.ViewModels.TabViewModel(mock, NullLoggerFactory.Instance);
 
         await vm.RunCommand.ExecuteAsync(null);
 
@@ -31,7 +33,7 @@ public class TabViewModelTests
         mock.ExecuteAsync(Arg.Any<string>(), Arg.Any<CancellationToken>())
             .Returns(Task.FromException<QueryResult>(new System.Exception("Query failed")));
 
-        var vm = new Wpf.ViewModels.TabViewModel(mock);
+        var vm = new Wpf.ViewModels.TabViewModel(mock, NullLoggerFactory.Instance);
 
         await vm.RunCommand.ExecuteAsync(null);
 
@@ -47,7 +49,7 @@ public class TabViewModelTests
         mock.ExecuteAsync(Arg.Is<string>(s => s == "SELECT * FROM users"), Arg.Any<CancellationToken>())
             .Returns(expectedResult);
 
-        var vm = new Wpf.ViewModels.TabViewModel(mock)
+        var vm = new Wpf.ViewModels.TabViewModel(mock, NullLoggerFactory.Instance)
         {
             EditorText = "SELECT * FROM users; SELECT * FROM products;", SelectionStart = 0, SelectionLength = 19 // "SELECT * FROM users;"
         };
@@ -64,7 +66,7 @@ public class TabViewModelTests
         IDatabaseService? mock = Substitute.For<IDatabaseService>();
         mock.GetCollectionNamesAsync(Arg.Any<CancellationToken>()).Returns(["users", "products"]);
 
-        var vm = new Wpf.ViewModels.TabViewModel(mock);
+        var vm = new Wpf.ViewModels.TabViewModel(mock, NullLoggerFactory.Instance);
 
         await vm.ShowCompletionCommand.ExecuteAsync(null);
 

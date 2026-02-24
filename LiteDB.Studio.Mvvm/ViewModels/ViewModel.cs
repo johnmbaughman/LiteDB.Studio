@@ -2,7 +2,7 @@ using System.ComponentModel;
 using System.Windows;
 using CommunityToolkit.Mvvm.ComponentModel;
 using LiteDB.Studio.Mvvm.ViewModels.Shell;
-using Serilog;
+using Microsoft.Extensions.Logging;
 
 namespace LiteDB.Studio.Mvvm.ViewModels;
 
@@ -17,12 +17,10 @@ public abstract partial class ViewModel : ObservableObject, IViewModel {
 
     /// <summary>
     /// Initializes a new instance of the <see cref="ViewModel"/> class.
-    /// Sets up the logger for the specific view model type.
     /// </summary>
-    /// <exception cref="System.NullReferenceException">Thrown if logger is not available.</exception>
-    protected ViewModel() {
-        Logger = LiteDbStudioApplication.Logger?.ForContext(GetType())
-                 ?? throw new NullReferenceException("Logger must not be null. Ensure MaiOtherMvvmApplication.Logger is initialized.");
+    /// <param name="logger">Logger instance for this view model.</param>
+    protected ViewModel(ILogger logger) {
+        Logger = logger ?? throw new ArgumentNullException(nameof(logger));
     }
 
     /// <summary>

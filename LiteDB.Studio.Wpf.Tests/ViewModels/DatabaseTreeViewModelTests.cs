@@ -2,6 +2,8 @@ using System.Threading;
 using System.Threading.Tasks;
 using LiteDB.Studio.Wpf.Services;
 using LiteDB.Studio.Wpf.ViewModels;
+using Microsoft.Extensions.Logging;
+using Microsoft.Extensions.Logging.Abstractions;
 using NSubstitute;
 using Xunit;
 
@@ -26,7 +28,8 @@ public class DatabaseTreeViewModelTests
         var fileDialogService = Substitute.For<IFileDialogService>();
         var fileService = Substitute.For<IFileService>();
 
-        var viewModel = new DatabaseTreeViewModel(mockService, dialogService, fileDialogService, fileService);
+        var viewModel = new DatabaseTreeViewModel(mockService, dialogService, fileDialogService, fileService,
+            NullLogger<DatabaseTreeViewModel>.Instance);
 
         // Act
         await viewModel.LoadRootNodesAsync();
@@ -79,7 +82,8 @@ public class DatabaseTreeViewModelTests
         var fileDialogService = Substitute.For<IFileDialogService>();
         var fileService = Substitute.For<IFileService>();
 
-        var viewModel = new DatabaseTreeViewModel(mockService, dialogService, fileDialogService, fileService);
+        var viewModel = new DatabaseTreeViewModel(mockService, dialogService, fileDialogService, fileService,
+            NullLogger<DatabaseTreeViewModel>.Instance);
 
         // Act
         await viewModel.LoadRootNodesAsync();

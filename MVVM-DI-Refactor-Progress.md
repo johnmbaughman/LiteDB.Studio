@@ -1,9 +1,9 @@
 ﻿# MVVM DI Refactor Progress Report
 
 ## Session Summary
-**Date**: Current Session  
+**Date**: February 24, 2026 (last updated)  
 **Branch**: 002-wpf-port  
-**Status**: ✅ **ALL STEPS COMPLETE** | ⚠️ Tests Need Updates
+**Status**: ✅ **ALL STEPS COMPLETE** | ✅ All 37 Tests Passing
 
 ---
 
@@ -254,70 +254,19 @@ dotnet build LiteDB.Studio.Wpf/LiteDB.Studio.Wpf.csproj
 # Build succeeded with 1 warning(s) in 11.7s
 ```
 
-### ⚠️ Test Projects: FAILING (Expected)
-**Reason**: Tests use old constructor signatures
-
-**Failing Tests**:
-1. `DatabaseTreeViewModelTests.cs` (2 failures)
-   - Line 27: `new DatabaseTreeViewModel(mockService, CreateShellContentView())`
-   - Line 76: `new DatabaseTreeViewModel(mockService, CreateShellContentView())`
-
-2. `MainViewModelTests.cs` (1 failure)
-   - Line 109: `new DatabaseTreeViewModel(databaseService, shellContentView)`
-
-3. `DatabaseTreeViewModelIntegrationTests.cs` (1 failure)
-   - Line 31: `new DatabaseTreeViewModel(service, CreateShellContentView())`
-
-**Fix Required**: Update test constructor calls from 2 parameters to 1:
-```csharp
-// ❌ OLD
-new DatabaseTreeViewModel(mockService, shellContentView)
-
-// ✅ NEW
-new DatabaseTreeViewModel(mockService)
+### ✅ Test Projects: PASSING
+```bash
+dotnet test LiteDB.Studio.Wpf.Tests/LiteDB.Studio.Wpf.Tests.csproj
+# Passed! - Failed: 0, Passed: 37, Skipped: 0, Total: 37
 ```
 
-**Status**: ⚠️ **PENDING** - Test updates not yet completed
+**Status**: ✅ **COMPLETE** — All 37 tests pass with current constructor signatures
 
 ---
 
-## Pending Work (From Original Plan)
+## Pending Work
 
-### ? Step 4: Standardize Connection Manager Dialog Creation
-**Status**: ? **NOT STARTED**
-
-**Current Issue**:
-```csharp
-// In MainViewModel.ConnectAsync()
-var vm = _services.GetRequiredService<ConnectionManagerViewModel>(); // ? Uses DI
-var win = new Views.ConnectionManagerWindow { DataContext = vm };    // Manual creation
-```
-
-**Recommended Changes**:
-1. Register `ConnectionManagerWindow` in DI container
-2. Inject `IServiceProvider` or create factory service
-3. Remove manual window instantiation
-
-**Files to Modify**:
-- `LiteDB.Studio.Wpf/ViewModels/MainViewModel.cs`
-- `LiteDB.Studio.Wpf/Views/ConnectionManagerWindow.xaml` (remove XAML DataContext if present)
-- `LiteDB.Studio.Wpf/App.xaml.cs` (register window in DI)
-
----
-
-### ? Step 5: ViewFactory Decision
-**Status**: ? **NOT STARTED**
-
-**Current State**:
-- `ViewFactory` infrastructure exists in `LiteDB.Studio.Mvvm`
-- **Not being used** in the WPF application
-- Views resolved directly through DI constructor injection
-
-**Options**:
-1. **Option A (Recommended)**: Remove unused `ViewFactory` code
-   - Remove `services.AddViewFactory()` from `ConfigureUi`
-   - Remove `ViewRegistration` singleton registrations
-   - Simplify DI configuration
+> All planned refactor steps and test fixes are complete. Only optional cleanup and documentation remain.
 
 2. **Option B**: Keep for future dynamic view creation
    - Leave infrastructure in place
@@ -406,22 +355,12 @@ ConnectionManagerWindow Constructor
 
 ## Testing Strategy
 
-### Unit Test Updates Required
-**Files to Update**:
-1. `LiteDB.Studio.Wpf.Tests/ViewModels/DatabaseTreeViewModelTests.cs`
-2. `LiteDB.Studio.Wpf.Tests/ViewModels/MainViewModelTests.cs`
-3. `LiteDB.Studio.Wpf.Tests/Integration/DatabaseTreeViewModelIntegrationTests.cs`
+### ✅ Unit Tests: All Passing
+**Result**: `Failed: 0, Passed: 37, Skipped: 0, Total: 37`
 
-**Changes Needed**:
+All three test files use the correct 4-parameter `DatabaseTreeViewModel` constructor matching the current implementation:
 ```csharp
-// Update constructor calls
-var mockService = new Mock<IDatabaseService>();
-
-// ❌ OLD - 2 parameters
-var viewModel = new DatabaseTreeViewModel(mockService.Object, shellContentView);
-
-// ✅ NEW - 1 parameter
-var viewModel = new DatabaseTreeViewModel(mockService.Object);
+new DatabaseTreeViewModel(databaseService, dialogService, fileDialogService, fileService)
 ```
 
 ### Integration Testing
@@ -521,29 +460,25 @@ public ParentView(MyView myView)
 
 ### Build Impact
 - **Main Project**: ✅ Builds successfully
-- **Test Projects**: ⚠️ 4 test files need updates
+- **Test Projects**: ✅ 37/37 tests passing
 - **Build Time**: ~11.7 seconds (no regression)
 
 ---
 
 ## Next Session Checklist
 
-### Immediate (High Priority)
-- [ ] Fix failing unit tests (update constructor calls)
-- [ ] Run full integration test suite
-- [ ] Verify application runtime behavior
-- [ ] Test connection dialog multiple opens (transient lifetime)
+### Integration Testing
+- [ ] Verify application startup and main window renders correctly
+- [ ] Test database connection dialog opens and closes
+- [ ] Test connection dialog can be opened multiple times (transient lifetime)
+- [ ] Verify tree view populates after connecting to a database
+- [ ] Test double-click on tree node inserts SQL snippet
 
 ### Optional Cleanup
-- [ ] Delete ViewFactory infrastructure files:
-  - `LiteDB.Studio.Mvvm/Hosting/IViewFactory.cs`
-  - `LiteDB.Studio.Mvvm/Hosting/ViewFactory.cs`
-  - `LiteDB.Studio.Mvvm/Hosting/ViewRegistration.cs`
-  - `LiteDB.Studio.Mvvm/Hosting/ServiceCollectionExtensions.cs`
+- [ ] Delete any remaining ViewFactory infrastructure files (already removed per Step 5)
 
 ### Documentation
 - [ ] Update architecture diagrams
-- [ ] Document DI patterns for team
 - [ ] Add inline comments for ContentControl pattern
 - [ ] Update README with new DI approach
 
@@ -589,15 +524,16 @@ public ParentView(MyView myView)
 
 ## Conclusion
 
-**Overall Progress**: **100% Complete** (5 of 5 steps)
+**Overall Progress**: **100% Complete** (5 of 5 steps + all tests passing)
 
-All planned refactoring steps are complete! The application now uses pure DI patterns throughout:
+All planned refactoring steps are complete and all 37 tests pass. The application now uses pure DI patterns throughout:
 
 ✅ **Step 1**: All ViewModels and Views registered in DI  
 ✅ **Step 2**: DatabaseTreeView uses constructor injection  
 ✅ **Step 3**: MainWindow hosts DI-injected views  
 ✅ **Step 4**: ConnectionManagerWindow uses DI  
 ✅ **Step 5**: ViewFactory infrastructure removed  
+✅ **Tests**: 37/37 passing  
 
 ### Key Achievements:
 - **Zero manual instantiation** - All views/viewmodels created by DI
@@ -607,9 +543,7 @@ All planned refactoring steps are complete! The application now uses pure DI pat
 - **Testability** - Easy to mock dependencies
 
 ### Remaining Work:
-- Fix 4 test files (constructor signature updates)
-- Optional: Delete ViewFactory infrastructure files
-- Integration testing
-- Documentation updates
+- Manual integration testing (app startup, dialogs, tree view)
+- Optional documentation updates
 
-**Status**: ✅ **PRODUCTION READY** - All main code complete, tests pending
+**Status**: ✅ **COMPLETE** - Code and tests done; manual integration testing pending

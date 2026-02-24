@@ -1,3 +1,4 @@
+using System.Collections.Specialized;
 using System.Windows;
 using System.Windows.Controls;
 using System.Windows.Controls.Primitives;
@@ -44,21 +45,52 @@ public partial class ResultGrid
         }
     }
 
+    private ResultGridViewModel? _subscribedViewModel;
+    private NotifyCollectionChangedEventHandler? _columnsChangedHandler;
+    private PropertyChangedEventHandler? _propertyChangedHandler;
+
     private void ResultGrid_DataContextChanged(object? sender, DependencyPropertyChangedEventArgs e)
     {
-        if (DataContext is not ResultGridViewModel viewModel) { return; }
+        // Unsubscribe old ViewModel handlers to prevent leaks and stale updates
+        if (_subscribedViewModel != null)
+        {
+            if (_columnsChangedHandler != null)
+            {
+                _subscribedViewModel.Columns.CollectionChanged -= _columnsChangedHandler;
+            }
+
+            if (_propertyChangedHandler != null)
+            {
+                _subscribedViewModel.PropertyChanged -= _propertyChangedHandler;
+            }
+
+            _subscribedViewModel = null;
+        }
+
+        if (DataContext is not ResultGridViewModel viewModel)
+        {
+            ResultsDataGrid.ItemsSource = null;
+            return;
+        }
+
+        _subscribedViewModel = viewModel;
 
         UpdateColumnsFromViewModel(viewModel);
-        viewModel.Columns.CollectionChanged += (_, _) => UpdateColumnsFromViewModel(viewModel);
 
-        // Also track QueryResult changes to refresh rows
-        viewModel.PropertyChanged += (_, args) =>
+        // Reset ItemsSource to the new ViewModel's current state (null for a fresh tab)
+        ResultsDataGrid.ItemsSource = viewModel.QueryResult?.Rows;
+
+        _columnsChangedHandler = (_, _) => UpdateColumnsFromViewModel(viewModel);
+        _propertyChangedHandler = (_, args) =>
         {
             if (args.PropertyName == nameof(ResultGridViewModel.QueryResult))
             {
                 ResultsDataGrid.ItemsSource = viewModel.QueryResult?.Rows;
             }
         };
+
+        viewModel.Columns.CollectionChanged += _columnsChangedHandler;
+        viewModel.PropertyChanged += _propertyChangedHandler;
     }
 
     private void UpdateColumnsFromViewModel(ResultGridViewModel viewModel)

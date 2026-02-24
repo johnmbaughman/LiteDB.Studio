@@ -1,6 +1,8 @@
 using System.Threading;
 using System.Threading.Tasks;
 using LiteDB.Studio.Wpf.Services;
+using Microsoft.Extensions.Logging;
+using Microsoft.Extensions.Logging.Abstractions;
 using NSubstitute;
 using Xunit;
 
@@ -13,7 +15,9 @@ public class ResultGridViewModelTests
     {
         // Arrange
         IDatabaseService? mockDatabaseService = Substitute.For<IDatabaseService>();
-        var viewModel = new LiteDB.Studio.Wpf.ViewModels.ResultGridViewModel(mockDatabaseService)
+        var viewModel = new LiteDB.Studio.Wpf.ViewModels.ResultGridViewModel(
+            mockDatabaseService,
+            NullLogger<LiteDB.Studio.Wpf.ViewModels.ResultGridViewModel>.Instance)
         {
             CollectionName = "test_collection"
         };

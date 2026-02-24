@@ -1,4 +1,4 @@
-using Serilog;
+using Microsoft.Extensions.Logging;
 
 namespace LiteDB.Studio.Mvvm.ViewModels;
 
@@ -40,7 +40,6 @@ public interface IViewModel {
     /// <summary>
     /// Gets the logger for diagnostic and error logging.
     /// </summary>
-    /// <value>The logger.</value>
     ILogger Logger { get; }
 
     /// <summary>

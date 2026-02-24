@@ -2,12 +2,14 @@ using System.Collections.ObjectModel;
 using CommunityToolkit.Mvvm.ComponentModel;
 using LiteDB.Studio.Wpf.Services;
 using LiteDB.Studio.Wpf.Util;
+using Microsoft.Extensions.Logging;
 
 namespace LiteDB.Studio.Wpf.ViewModels;
 
-public partial class ResultGridViewModel(IDatabaseService databaseService) : ObservableObject
+public partial class ResultGridViewModel(IDatabaseService databaseService, ILogger<ResultGridViewModel> logger) : ObservableObject
 {
     private readonly IDatabaseService _databaseService = databaseService ?? throw new ArgumentNullException(nameof(databaseService));
+    private readonly ILogger<ResultGridViewModel> _logger = logger ?? throw new ArgumentNullException(nameof(logger));
 
     [ObservableProperty]
     private string _collectionName = string.Empty;
@@ -61,7 +63,7 @@ public partial class ResultGridViewModel(IDatabaseService databaseService) : Obs
         catch (Exception ex)
         {
             // Log the exception
-            Serilog.Log.Error(ex, "Failed to update document field {Field} in collection {Collection}", columnName, GetCollectionName());
+            _logger.LogError(ex, "Failed to update document field {Field} in collection {Collection}", columnName, GetCollectionName());
             // Perhaps show message or revert
         }
     }

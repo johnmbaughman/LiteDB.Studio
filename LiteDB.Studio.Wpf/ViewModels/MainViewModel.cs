@@ -1,6 +1,7 @@
 using CommunityToolkit.Mvvm.ComponentModel;
 using CommunityToolkit.Mvvm.Input;
 using LiteDB.Studio.Wpf.Services;
+using Microsoft.Extensions.Logging;
 using System.Collections.ObjectModel;
 using System.Data;
 using System.Globalization;
@@ -45,7 +46,9 @@ public partial class MainViewModel : ShellContentViewModel
         DatabaseTreeViewModel tree,
         IConnectionManagerDialogService connectionDialogService,
         IDialogService dialogService,
-        IAppSettingsService appSettingsService)
+        IAppSettingsService appSettingsService,
+        ILogger<MainViewModel> logger,
+        ILoggerFactory loggerFactory) : base(logger)
     {
         _dbService = dbService ?? throw new ArgumentNullException(nameof(dbService));
         _connectionDialogService = connectionDialogService ?? throw new ArgumentNullException(nameof(connectionDialogService));
@@ -54,7 +57,7 @@ public partial class MainViewModel : ShellContentViewModel
         // TODO: Pick up moving things around here. Need to find a way to connect TreeView events to MainViewModel without tight coupling in MVVM framework.
         Tree = tree ?? throw new ArgumentNullException(nameof(tree));
 
-        _tabManager = new TabManager(_dbService);
+        _tabManager = new TabManager(_dbService, loggerFactory ?? throw new ArgumentNullException(nameof(loggerFactory)));
         _tabManager.PropertyChanged += (_, e) =>
         {
             if (e.PropertyName == nameof(TabManager.SelectedTab))
