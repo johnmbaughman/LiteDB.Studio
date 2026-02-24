@@ -13,7 +13,7 @@ public class ResultGridViewModelColumnsTests
     public void SettingQueryResult_PopulatesColumnDescriptors()
     {
         // Arrange
-        var mockDb = NSubstitute.Substitute.For<LiteDB.Studio.Wpf.Services.IDatabaseService>();
+        IDatabaseService mockDb = NSubstitute.Substitute.For<LiteDB.Studio.Wpf.Services.IDatabaseService>();
         var vm = new ResultGridViewModel(mockDb, NullLogger<ResultGridViewModel>.Instance);
 
         var result = new QueryResult

@@ -24,9 +24,9 @@ public class DatabaseTreeViewModelTests
         mockService.GetCollectionNamesAsync(CancellationToken.None).ReturnsForAnyArgs(["collection1", "collection2"]);
         mockService.GetSystemCollectionNamesAsync(CancellationToken.None).ReturnsForAnyArgs(["system1", "system2"]);
 
-        var dialogService = Substitute.For<IDialogService>();
-        var fileDialogService = Substitute.For<IFileDialogService>();
-        var fileService = Substitute.For<IFileService>();
+        IDialogService dialogService = Substitute.For<IDialogService>();
+        IFileDialogService fileDialogService = Substitute.For<IFileDialogService>();
+        IFileService fileService = Substitute.For<IFileService>();
 
         var viewModel = new DatabaseTreeViewModel(mockService, dialogService, fileDialogService, fileService,
             NullLogger<DatabaseTreeViewModel>.Instance);
@@ -78,9 +78,9 @@ public class DatabaseTreeViewModelTests
         mockService.GetCollectionNamesAsync(CancellationToken.None).ReturnsForAnyArgs(["collection1", "system1"]);
         mockService.GetSystemCollectionNamesAsync(CancellationToken.None).ReturnsForAnyArgs(["system1", "system2"]);
 
-        var dialogService = Substitute.For<IDialogService>();
-        var fileDialogService = Substitute.For<IFileDialogService>();
-        var fileService = Substitute.For<IFileService>();
+        IDialogService dialogService = Substitute.For<IDialogService>();
+        IFileDialogService fileDialogService = Substitute.For<IFileDialogService>();
+        IFileService fileService = Substitute.For<IFileService>();
 
         var viewModel = new DatabaseTreeViewModel(mockService, dialogService, fileDialogService, fileService,
             NullLogger<DatabaseTreeViewModel>.Instance);

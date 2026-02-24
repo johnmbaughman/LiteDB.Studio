@@ -9,6 +9,9 @@ public partial class TabViewModel : ObservableObject
 {
     private readonly IDatabaseService _databaseService;
     private readonly ILogger<TabViewModel> _logger;
+    private readonly IDialogService? _dialogService;
+
+    public Func<CancellationToken, Task>? SaveAction { get; set; }
 
     [ObservableProperty]
     private string _title = string.Empty;
@@ -52,19 +55,20 @@ public partial class TabViewModel : ObservableObject
     [ObservableProperty]
     private IEnumerable<CompletionItem>? _lastCompletions;
 
-    public TabViewModel(IDatabaseService databaseService, ILoggerFactory loggerFactory)
+    public TabViewModel(IDatabaseService databaseService, ILoggerFactory loggerFactory, IDialogService? dialogService = null)
     {
         _databaseService = databaseService ?? throw new ArgumentNullException(nameof(databaseService));
         _logger = (loggerFactory ?? throw new ArgumentNullException(nameof(loggerFactory))).CreateLogger<TabViewModel>();
+        _dialogService = dialogService;
         RunCommand = new AsyncRelayCommand(ExecuteRunAsync);
         ShowCompletionCommand = new AsyncRelayCommand(ExecuteShowCompletionAsync);
         ResultGridViewModel = new ResultGridViewModel(_databaseService, loggerFactory.CreateLogger<ResultGridViewModel>());
-        CloseCommand = new RelayCommand(ExecuteClose);
+        CloseCommand = new AsyncRelayCommand(ExecuteCloseAsync);
     }
 
     public IAsyncRelayCommand RunCommand { get; }
     public IAsyncRelayCommand ShowCompletionCommand { get; }
-    public IRelayCommand CloseCommand { get; }
+    public IAsyncRelayCommand CloseCommand { get; }
 
     private async Task ExecuteRunAsync(CancellationToken cancellationToken)
     {
@@ -95,11 +99,27 @@ public partial class TabViewModel : ObservableObject
         }
     }
 
-    private void ExecuteClose()
+    private async Task ExecuteCloseAsync(CancellationToken cancellationToken)
     {
-        // TODO: Implement save prompt if IsModified
-        // For now, just mark as not modified to allow close
-        IsModified = false;
+        if (!IsModified || _dialogService == null) { return; }
+
+        var save = _dialogService.Confirm(
+            $"Save changes to {(string.IsNullOrEmpty(Filename) ? Title : Filename)}?",
+            "Unsaved Changes",
+            DialogIcon.Question);
+
+        if (save && SaveAction != null)
+        {
+            await SaveAction(cancellationToken);
+        }
+    }
+
+    partial void OnEditorTextChanged(string value)
+    {
+        if (!IsPlus)
+        {
+            IsModified = true;
+        }
     }
 
     partial void OnLastResultChanged(QueryResult? value)

@@ -28,6 +28,8 @@ public class MainViewModelTests
             CreateTreeViewModel(mockDbService),
             Substitute.For<IConnectionManagerDialogService>(),
             Substitute.For<IDialogService>(),
+            Substitute.For<IFileDialogService>(),
+            Substitute.For<IFileService>(),
             Substitute.For<IAppSettingsService>(),
             NullLogger<MainViewModel>.Instance,
             NullLoggerFactory.Instance) {
@@ -47,7 +49,7 @@ public class MainViewModelTests
         var settings = new LiteDB.Studio.Wpf.Util.ApplicationSettings();
         settings.RecentConnectionStrings.Add(new ConnectionString("test.db"));
 
-        var appSettings = Substitute.For<IAppSettingsService>();
+        IAppSettingsService appSettings = Substitute.For<IAppSettingsService>();
         appSettings.ApplicationSettings.Returns(settings);
 
         var vm = new MainViewModel(
@@ -55,6 +57,8 @@ public class MainViewModelTests
             CreateTreeViewModel(mockDbService),
             Substitute.For<IConnectionManagerDialogService>(),
             Substitute.For<IDialogService>(),
+            Substitute.For<IFileDialogService>(),
+            Substitute.For<IFileService>(),
             appSettings,
             NullLogger<MainViewModel>.Instance,
             NullLoggerFactory.Instance);
@@ -73,11 +77,13 @@ public class MainViewModelTests
             CreateTreeViewModel(mockDbService),
             Substitute.For<IConnectionManagerDialogService>(),
             Substitute.For<IDialogService>(),
+            Substitute.For<IFileDialogService>(),
+            Substitute.For<IFileService>(),
             Substitute.For<IAppSettingsService>(),
             NullLogger<MainViewModel>.Instance,
             NullLoggerFactory.Instance);
 
-        TabViewModel? mockTab = Substitute.For<TabViewModel>(mockDbService, NullLoggerFactory.Instance);
+        TabViewModel? mockTab = Substitute.For<TabViewModel>(mockDbService, NullLoggerFactory.Instance, null);
         vm.Tabs.Add(mockTab);
         vm.SelectedTab = mockTab;
 
@@ -96,6 +102,8 @@ public class MainViewModelTests
             CreateTreeViewModel(mockDbService),
             Substitute.For<IConnectionManagerDialogService>(),
             Substitute.For<IDialogService>(),
+            Substitute.For<IFileDialogService>(),
+            Substitute.For<IFileService>(),
             Substitute.For<IAppSettingsService>(),
             NullLogger<MainViewModel>.Instance,
             NullLoggerFactory.Instance);
@@ -121,11 +129,13 @@ public class MainViewModelTests
             CreateTreeViewModel(mockDbService),
             Substitute.For<IConnectionManagerDialogService>(),
             Substitute.For<IDialogService>(),
+            Substitute.For<IFileDialogService>(),
+            Substitute.For<IFileService>(),
             Substitute.For<IAppSettingsService>(),
             NullLogger<MainViewModel>.Instance,
             NullLoggerFactory.Instance);
 
-        TabViewModel? mockTab = Substitute.For<TabViewModel>(mockDbService, NullLoggerFactory.Instance);
+        TabViewModel? mockTab = Substitute.For<TabViewModel>(mockDbService, NullLoggerFactory.Instance, null);
         mockTab.EditorText = "SELECT * FROM users; SELECT * FROM products;";
         mockTab.SelectionStart = 0;
         mockTab.SelectionLength = 19; // Length of "SELECT * FROM users;"
@@ -138,6 +148,73 @@ public class MainViewModelTests
         // Assume the selection is handled correctly
         Assert.Equal(19, mockTab.SelectionLength);
     }
+    [Fact]
+    public async Task SaveFileCommand_WritesFile_AndClearsIsModified()
+    {
+        IDatabaseService? mockDbService = Substitute.For<IDatabaseService>();
+        IFileService? mockFileService = Substitute.For<IFileService>();
+        mockFileService.WriteAllTextAsync(Arg.Any<string>(), Arg.Any<string>(), Arg.Any<CancellationToken>())
+            .Returns(Task.CompletedTask);
+
+        var vm = new MainViewModel(
+            mockDbService,
+            CreateTreeViewModel(mockDbService),
+            Substitute.For<IConnectionManagerDialogService>(),
+            Substitute.For<IDialogService>(),
+            Substitute.For<IFileDialogService>(),
+            mockFileService,
+            Substitute.For<IAppSettingsService>(),
+            NullLogger<MainViewModel>.Instance,
+            NullLoggerFactory.Instance);
+
+        // Add a real tab and select it
+        var tab = new TabViewModel(mockDbService, NullLoggerFactory.Instance);
+        vm.Tabs.Add(tab);
+        vm.SelectedTab = tab;
+
+        tab.EditorText = "SELECT $ FROM users;";
+        tab.Filename = "test.sql";
+        tab.IsModified = true;
+
+        await vm.SaveFileCommand.ExecuteAsync(null);
+
+        await mockFileService.Received(1)
+            .WriteAllTextAsync("test.sql", "SELECT $ FROM users;", Arg.Any<CancellationToken>());
+        Assert.False(vm.SelectedTab.IsModified);
+    }
+
+    [Fact]
+    public async Task OpenFileCommand_LoadsFile_IntoNewTab()
+    {
+        IDatabaseService mockDbService = Substitute.For<IDatabaseService>();
+        IFileDialogService mockFileDialogService = Substitute.For<IFileDialogService>();
+        IFileService mockFileService = Substitute.For<IFileService>();
+
+        mockFileDialogService.OpenFile(Arg.Any<OpenFileDialogOptions>())
+            .Returns(@"C:\test\query.sql");
+        mockFileService.ReadAllTextAsync(@"C:\test\query.sql", Arg.Any<CancellationToken>())
+            .Returns(Task.FromResult("SELECT 1;"));
+
+        var vm = new MainViewModel(
+            mockDbService,
+            CreateTreeViewModel(mockDbService),
+            Substitute.For<IConnectionManagerDialogService>(),
+            Substitute.For<IDialogService>(),
+            mockFileDialogService,
+            mockFileService,
+            Substitute.For<IAppSettingsService>(),
+            NullLogger<MainViewModel>.Instance,
+            NullLoggerFactory.Instance);
+
+        await vm.OpenFileCommand.ExecuteAsync(null);
+
+        Assert.NotNull(vm.SelectedTab);
+        Assert.Equal("SELECT 1;", vm.SelectedTab!.EditorText);
+        Assert.Equal(@"C:\test\query.sql", vm.SelectedTab.Filename);
+        Assert.Equal("query.sql", vm.SelectedTab.Title);
+        Assert.False(vm.SelectedTab.IsModified);
+    }
+
     private static DatabaseTreeViewModel CreateTreeViewModel(
         IDatabaseService databaseService)
     {

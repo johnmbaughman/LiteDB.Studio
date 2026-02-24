@@ -9,15 +9,19 @@ public sealed partial class TabManager : ObservableObject
 {
     private readonly IDatabaseService _databaseService;
     private readonly ILoggerFactory _loggerFactory;
+    private readonly IDialogService? _dialogService;
+    private readonly Func<TabViewModel, CancellationToken, Task>? _saveDelegate;
 
     private TabViewModel? _selectedTab;
 
-    public TabManager(IDatabaseService databaseService, ILoggerFactory loggerFactory)
+    public TabManager(IDatabaseService databaseService, ILoggerFactory loggerFactory, IDialogService? dialogService = null, Func<TabViewModel, CancellationToken, Task>? saveDelegate = null)
     {
         _databaseService = databaseService ?? throw new ArgumentNullException(nameof(databaseService));
         _loggerFactory = loggerFactory ?? throw new ArgumentNullException(nameof(loggerFactory));
+        _dialogService = dialogService;
+        _saveDelegate = saveDelegate;
 
-        Tabs = [new TabViewModel(_databaseService, _loggerFactory) { Title = "+", IsPlus = true }];
+        Tabs = [new TabViewModel(_databaseService, _loggerFactory, _dialogService) { Title = "+", IsPlus = true }];
     }
 
     public ObservableCollection<TabViewModel> Tabs { get; }
@@ -45,7 +49,11 @@ public sealed partial class TabManager : ObservableObject
 
     public void AddNewTab()
     {
-        var newTab = new TabViewModel(_databaseService, _loggerFactory) { Title = $"Query {Tabs.Count}" };
+        var newTab = new TabViewModel(_databaseService, _loggerFactory, _dialogService) { Title = $"Query {Tabs.Count}" };
+        if (_saveDelegate != null)
+        {
+            newTab.SaveAction = ct => _saveDelegate(newTab, ct);
+        }
 
         // insert before plus tab
         TabViewModel? plus = Tabs.FirstOrDefault(t => t.Title == "+");
@@ -139,7 +147,15 @@ public sealed partial class TabManager : ObservableObject
         {
             // insert new tab before plus
             TabViewModel? plus = Tabs.FirstOrDefault(t => t.Title == "+");
-            var newTab = new TabViewModel(_databaseService, _loggerFactory) { Title = $"Query {Tabs.Count}", EditorText = sql.Replace("\\n", "\n") };
+            var newTab = new TabViewModel(_databaseService, _loggerFactory, _dialogService)
+            {
+                Title = $"Query {Tabs.Count}",
+                EditorText = sql.Replace("\\n", "\n")
+            };
+            if (_saveDelegate != null)
+            {
+                newTab.SaveAction = ct => _saveDelegate(newTab, ct);
+            }
             if (plus != null)
             {
                 var idx = Tabs.IndexOf(plus);

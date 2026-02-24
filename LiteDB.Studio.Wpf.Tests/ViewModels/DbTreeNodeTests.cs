@@ -22,9 +22,9 @@ public class DbTreeNodeTests
         };
         mockService.GetCollectionSchemaAsync("testCollection", CancellationToken.None).ReturnsForAnyArgs(schema);
 
-        var dialogService = Substitute.For<IDialogService>();
-        var fileDialogService = Substitute.For<IFileDialogService>();
-        var fileService = Substitute.For<IFileService>();
+        IDialogService dialogService = Substitute.For<IDialogService>();
+        IFileDialogService fileDialogService = Substitute.For<IFileDialogService>();
+        IFileService fileService = Substitute.For<IFileService>();
 
         var node = new DbTreeNode(mockService, dialogService, fileDialogService, fileService)
         {
@@ -52,9 +52,9 @@ public class DbTreeNodeTests
         // Arrange
         string? inserted = null;
         IDatabaseService? mockService = Substitute.For<IDatabaseService>();
-        var dialogService = Substitute.For<IDialogService>();
-        var fileDialogService = Substitute.For<IFileDialogService>();
-        var fileService = Substitute.For<IFileService>();
+        IDialogService dialogService = Substitute.For<IDialogService>();
+        IFileDialogService fileDialogService = Substitute.For<IFileDialogService>();
+        IFileService fileService = Substitute.For<IFileService>();
 
         var node = new DbTreeNode(mockService, dialogService, fileDialogService, fileService, snippet => inserted = snippet)
         {

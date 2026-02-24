@@ -15,6 +15,8 @@ public partial class MainViewModel : ShellContentViewModel
     private readonly IDatabaseService _dbService;
     private readonly IConnectionManagerDialogService _connectionDialogService;
     private readonly IDialogService _dialogService;
+    private readonly IFileDialogService _fileDialogService;
+    private readonly IFileService _fileService;
     private readonly IAppSettingsService _appSettingsService;
 
     [ObservableProperty]
@@ -46,6 +48,8 @@ public partial class MainViewModel : ShellContentViewModel
         DatabaseTreeViewModel tree,
         IConnectionManagerDialogService connectionDialogService,
         IDialogService dialogService,
+        IFileDialogService fileDialogService,
+        IFileService fileService,
         IAppSettingsService appSettingsService,
         ILogger<MainViewModel> logger,
         ILoggerFactory loggerFactory) : base(logger)
@@ -53,11 +57,13 @@ public partial class MainViewModel : ShellContentViewModel
         _dbService = dbService ?? throw new ArgumentNullException(nameof(dbService));
         _connectionDialogService = connectionDialogService ?? throw new ArgumentNullException(nameof(connectionDialogService));
         _dialogService = dialogService ?? throw new ArgumentNullException(nameof(dialogService));
+        _fileDialogService = fileDialogService ?? throw new ArgumentNullException(nameof(fileDialogService));
+        _fileService = fileService ?? throw new ArgumentNullException(nameof(fileService));
         _appSettingsService = appSettingsService ?? throw new ArgumentNullException(nameof(appSettingsService));
         // TODO: Pick up moving things around here. Need to find a way to connect TreeView events to MainViewModel without tight coupling in MVVM framework.
         Tree = tree ?? throw new ArgumentNullException(nameof(tree));
 
-        _tabManager = new TabManager(_dbService, loggerFactory ?? throw new ArgumentNullException(nameof(loggerFactory)));
+        _tabManager = new TabManager(_dbService, loggerFactory ?? throw new ArgumentNullException(nameof(loggerFactory)), _dialogService, SaveTabAsync);
         _tabManager.PropertyChanged += (_, e) =>
         {
             if (e.PropertyName == nameof(TabManager.SelectedTab))
@@ -76,7 +82,12 @@ public partial class MainViewModel : ShellContentViewModel
         DisconnectCommand = new RelayCommand(Disconnect);
         RunCommand = new RelayCommand(Run);
         NewTabCommand = new RelayCommand(() => _tabManager.AddNewTab());
-        CloseTabCommand = new RelayCommand<TabViewModel>(_tabManager.CloseTab);
+        CloseTabCommand = new AsyncRelayCommand<TabViewModel>(async (tab, ct) =>
+        {
+            if (tab == null) { return; }
+            await tab.CloseCommand.ExecuteAsync(ct);
+            _tabManager.CloseTab(tab);
+        });
         OpenRecentCommand = new AsyncRelayCommand<object>(OpenRecentAsync);
         OpenRecentWrapperCommand = new RelayCommand<object>(p =>
         {
@@ -90,6 +101,9 @@ public partial class MainViewModel : ShellContentViewModel
         RefreshTreeCommand = new AsyncRelayCommand(RefreshTreeAsync);
         InsertSnippetCommand = new RelayCommand<string>(snippet => _tabManager.InsertSnippet(snippet));
         LoadLastDatabaseCommand = new RelayCommand(LoadLastDatabase);
+        OpenFileCommand = new AsyncRelayCommand(OpenFileAsync);
+        SaveFileCommand = new AsyncRelayCommand(SaveFileAsync);
+        SaveAllCommand = new AsyncRelayCommand(SaveAllAsync);
     }
 
     public void Initialize()
@@ -131,7 +145,7 @@ public partial class MainViewModel : ShellContentViewModel
     public IRelayCommand DisconnectCommand { get; }
     public IRelayCommand RunCommand { get; }
     public IRelayCommand NewTabCommand { get; }
-    public IRelayCommand<TabViewModel> CloseTabCommand { get; }
+    public IAsyncRelayCommand<TabViewModel> CloseTabCommand { get; }
     public IAsyncRelayCommand<object> OpenRecentCommand { get; }
     public IRelayCommand<object> OpenRecentWrapperCommand { get; }
     public IRelayCommand ClearRecentCommand { get; }
@@ -139,6 +153,9 @@ public partial class MainViewModel : ShellContentViewModel
     public IAsyncRelayCommand RefreshTreeCommand { get; }
     public IRelayCommand<string> InsertSnippetCommand { get; }
     public IRelayCommand LoadLastDatabaseCommand { get; }
+    public IAsyncRelayCommand OpenFileCommand { get; }
+    public IAsyncRelayCommand SaveFileCommand { get; }
+    public IAsyncRelayCommand SaveAllCommand { get; }
 
     public TabViewModel? SelectedTab
     {
@@ -156,6 +173,83 @@ public partial class MainViewModel : ShellContentViewModel
             _appSettingsService.ApplicationSettings.LoadLastDbOnStartup = value;
             _appSettingsService.PersistData();
         }
+    }
+
+    private Task SaveFileAsync(CancellationToken cancellationToken)
+        => SaveTabAsync(SelectedTab, cancellationToken);
+
+    private async Task SaveAllAsync(CancellationToken cancellationToken)
+    {
+        foreach (TabViewModel tab in Tabs)
+        {
+            if (tab.IsPlus || !tab.IsModified) { continue; }
+            await SaveTabAsync(tab, cancellationToken);
+        }
+    }
+
+    private async Task SaveTabAsync(TabViewModel? tab, CancellationToken cancellationToken)
+    {
+        if (tab == null || tab.IsPlus) { return; }
+
+        var path = tab.Filename;
+        if (string.IsNullOrEmpty(path))
+        {
+            path = _fileDialogService.SaveFile(new SaveFileDialogOptions
+            {
+                Title = "Save SQL File",
+                Filter = "SQL files (*.sql)|*.sql|All files (*.*)|*.*",
+                FileName = string.IsNullOrEmpty(tab.Title) ? "query.sql" : tab.Title
+            });
+            if (string.IsNullOrEmpty(path)) { return; }
+        }
+
+        try
+        {
+            await _fileService.WriteAllTextAsync(path, tab.EditorText, cancellationToken);
+            tab.Filename = path;
+            tab.Title = Path.GetFileName(path);
+            tab.IsModified = false;
+        }
+        catch (Exception ex)
+        {
+            CursorText = $"Error saving file: {ex.Message}";
+        }
+    }
+
+    private async Task OpenFileAsync(CancellationToken cancellationToken)
+    {
+        var path = _fileDialogService.OpenFile(new OpenFileDialogOptions
+        {
+            Title = "Open SQL File",
+            Filter = "SQL files (*.sql)|*.sql|All files (*.*)|*.*"
+        });
+        if (string.IsNullOrEmpty(path)) { return; }
+
+        string content;
+        try
+        {
+            content = await _fileService.ReadAllTextAsync(path, cancellationToken);
+        }
+        catch (Exception ex)
+        {
+            CursorText = $"Error opening file: {ex.Message}";
+            return;
+        }
+
+        // Use the current tab if it is empty and unmodified; otherwise open a new tab
+        TabViewModel? target = _tabManager.SelectedTab;
+        if (target == null || target.IsPlus || !string.IsNullOrWhiteSpace(target.EditorText))
+        {
+            _tabManager.AddNewTab();
+            target = _tabManager.SelectedTab;
+        }
+
+        if (target == null) { return; }
+
+        target.EditorText = content;
+        target.Filename = path;
+        target.IsModified = false;
+        target.Title = Path.GetFileName(path);
     }
 
     private async Task ConnectAsync(CancellationToken cancellationToken)

@@ -19,6 +19,9 @@
 
     <UserControl.InputBindings>
         <KeyBinding Key="F5" Command="{Binding RunCommand}" />
+        <KeyBinding Modifiers="Ctrl" Key="O" Command="{Binding OpenFileCommand}" />
+        <KeyBinding Modifiers="Ctrl" Key="S" Command="{Binding SaveFileCommand}" />
+        <KeyBinding Modifiers="Ctrl+Shift" Key="S" Command="{Binding SaveAllCommand}" />
     </UserControl.InputBindings>
     <Grid>
         <Grid.RowDefinitions>
@@ -59,6 +62,18 @@
                         BorderBrush="Transparent">
                         <!--  Recent databases dropdown (small icon)  -->
                         <Menu Background="Transparent">
+                            <!--  File menu  -->
+                            <MenuItem Header="_File">
+                                <MenuItem Command="{Binding OpenFileCommand}" Header="_Open..." InputGestureText="Ctrl+O" />
+                                <MenuItem Command="{Binding SaveFileCommand}" Header="_Save" InputGestureText="Ctrl+S" />
+                                <MenuItem Command="{Binding SaveAllCommand}" Header="Save _All" InputGestureText="Ctrl+Shift+S" />
+                                <Separator />
+                                <MenuItem
+                                    Command="{Binding CloseTabCommand}"
+                                    CommandParameter="{Binding SelectedTab}"
+                                    Header="_Close Tab" />
+                            </MenuItem>
+                            <!--  Recent databases dropdown (small icon)  -->
                             <MenuItem>
                                 <MenuItem.Header>
                                     <StackPanel VerticalAlignment="Center" Orientation="Horizontal">
@@ -149,7 +164,7 @@
 
                         <Button
                             Margin="6,0,6,0"
-                            IsEnabled="{Binding IsConnected}"
+                            Command="{Binding OpenFileCommand}"
                             ToolTip="Load">
                             <StackPanel VerticalAlignment="Center" Orientation="Horizontal">
                                 <util:GrayableImage

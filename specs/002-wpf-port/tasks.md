@@ -219,16 +219,16 @@ This document breaks down the WPF port into prioritized, executable tasks organi
 
 ### Tasks
 
-- [ ] T099 [US5] Implement MainViewModel.OpenFileCommand in LiteDB.Studio.Wpf/ViewModels/MainViewModel.cs (IRelayCommand): show OpenFileDialog filtered to .sql, load file into new or selected tab, set Filename and IsModified = false
-- [ ] T100 [US5] Implement MainViewModel.SaveFileCommand in LiteDB.Studio.Wpf/ViewModels/MainViewModel.cs (IRelayCommand): if Filename null show SaveFileDialog, write EditorText to file, set IsModified = false, handle IO errors
-- [ ] T101 [P] [US5] Implement MainViewModel.SaveAllCommand in LiteDB.Studio.Wpf/ViewModels/MainViewModel.cs (IRelayCommand): iterate Tabs, save all where IsModified = true
-- [ ] T102 [US5] Update TabViewModel to set IsModified = true on EditorText PropertyChanged in LiteDB.Studio.Wpf/ViewModels/TabViewModel.cs (add PropertyChanged handler)
-- [ ] T103 [US5] Update TabViewModel.CloseCommand in LiteDB.Studio.Wpf/ViewModels/TabViewModel.cs to show confirmation dialog if IsModified ("Save changes to {Filename}?"), invoke SaveFileCommand if yes
-- [ ] T104 [US5] Implement MainViewModel.CloseTabCommand in LiteDB.Studio.Wpf/ViewModels/MainViewModel.cs (IRelayCommand): invoke TabViewModel.CloseCommand, remove from Tabs collection
-- [ ] T105 [US5] Add File menu to MainWindow.xaml with Open, Save, Save All, Close Tab commands
-- [ ] T106 [US5] Add unit test MainViewModelTests.OpenFileCommand_LoadsFile in LiteDB.Studio.Wpf.Tests/ViewModels/MainViewModelTests.cs (mock file dialog, verify tab created with file content)
-- [ ] T107 [P] [US5] Add unit test MainViewModelTests.SaveFileCommand_WritesFile in LiteDB.Studio.Wpf.Tests/ViewModels/MainViewModelTests.cs (verify EditorText written, IsModified cleared)
-- [ ] T108 [P] [US5] Add unit test TabViewModelTests.CloseCommand_PromptsIfModified in LiteDB.Studio.Wpf.Tests/ViewModels/TabViewModelTests.cs (set IsModified, verify dialog shown)
+- [X] T099 [US5] Implement MainViewModel.OpenFileCommand in LiteDB.Studio.Wpf/ViewModels/MainViewModel.cs (IRelayCommand): show OpenFileDialog filtered to .sql, load file into new or selected tab, set Filename and IsModified = false
+- [X] T100 [US5] Implement MainViewModel.SaveFileCommand in LiteDB.Studio.Wpf/ViewModels/MainViewModel.cs (IRelayCommand): if Filename null show SaveFileDialog, write EditorText to file, set IsModified = false, handle IO errors
+- [X] T101 [P] [US5] Implement MainViewModel.SaveAllCommand in LiteDB.Studio.Wpf/ViewModels/MainViewModel.cs (IRelayCommand): iterate Tabs, save all where IsModified = true
+- [X] T102 [US5] Update TabViewModel to set IsModified = true on EditorText PropertyChanged in LiteDB.Studio.Wpf/ViewModels/TabViewModel.cs (add PropertyChanged handler)
+- [X] T103 [US5] Update TabViewModel.CloseCommand in LiteDB.Studio.Wpf/ViewModels/TabViewModel.cs to show confirmation dialog if IsModified ("Save changes to {Filename}?"), invoke SaveFileCommand if yes
+- [X] T104 [US5] Implement MainViewModel.CloseTabCommand in LiteDB.Studio.Wpf/ViewModels/MainViewModel.cs (IRelayCommand): invoke TabViewModel.CloseCommand, remove from Tabs collection
+- [X] T105 [US5] Add File menu to MainWindow.xaml with Open, Save, Save All, Close Tab commands
+- [X] T106 [US5] Add unit test MainViewModelTests.OpenFileCommand_LoadsFile in LiteDB.Studio.Wpf.Tests/ViewModels/MainViewModelTests.cs (mock file dialog, verify tab created with file content)
+- [X] T107 [P] [US5] Add unit test MainViewModelTests.SaveFileCommand_WritesFile in LiteDB.Studio.Wpf.Tests/ViewModels/MainViewModelTests.cs (verify EditorText written, IsModified cleared)
+- [X] T108 [P] [US5] Add unit test TabViewModelTests.CloseCommand_PromptsIfModified in LiteDB.Studio.Wpf.Tests/ViewModels/TabViewModelTests.cs (set IsModified, verify dialog shown)
 
 ---
 
