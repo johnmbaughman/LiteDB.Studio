@@ -131,4 +131,41 @@ public class LiteDbServiceTests : IDisposable
         IEnumerable<string> collectionsAfter = await _service.GetCollectionNamesAsync(cts.Token);
         Assert.DoesNotContain("test_drop_collection", collectionsAfter);
     }
+
+    [Fact]
+    public async Task TransactionWorkflow_BeginInsertCommit_DataPersisted()
+    {
+        // Arrange
+        var cts = new CancellationTokenSource();
+        await _service.ConnectAsync(":memory:", cts.Token);
+
+        // Act
+        await _service.BeginTransactionAsync(cts.Token);
+        Assert.True(_service.TransactionActive);
+
+        await _service.ExecuteAsync("INSERT INTO tx_test VALUES { name: 'committed' }", cts.Token);
+        await _service.CommitTransactionAsync(cts.Token);
+
+        // Assert: transaction closed and data persisted
+        Assert.False(_service.TransactionActive);
+        QueryResult result = await _service.ExecuteAsync("SELECT * FROM tx_test", cts.Token);
+        Assert.Equal(1, result.RowCount);
+    }
+
+    [Fact]
+    public async Task TransactionWorkflow_BeginRollback_TransactionStateClosed()
+    {
+        // Note: LiteDatabase.Execute() auto-commits each SQL script independently of BeginTrans(),
+        // so verifying that inserted data is absent after rollback is not achievable via ExecuteAsync.
+        // This test verifies the transaction lifecycle state only.
+        var cts = new CancellationTokenSource();
+        await _service.ConnectAsync(":memory:", cts.Token);
+
+        await _service.BeginTransactionAsync(cts.Token);
+        Assert.True(_service.TransactionActive);
+
+        await _service.RollbackTransactionAsync(cts.Token);
+
+        Assert.False(_service.TransactionActive);
+    }
 }

@@ -247,19 +247,19 @@ This document breaks down the WPF port into prioritized, executable tasks organi
 
 ### Tasks
 
-- [ ] T109 [US6] Implement MainViewModel.BeginTransactionCommand in LiteDB.Studio.Wpf/ViewModels/MainViewModel.cs (IAsyncRelayCommand): call IDatabaseService.BeginTransactionAsync
-- [ ] T110 [US6] Implement MainViewModel.CommitTransactionCommand in LiteDB.Studio.Wpf/ViewModels/MainViewModel.cs (IAsyncRelayCommand): call IDatabaseService.CommitTransactionAsync
-- [ ] T111 [US6] Implement MainViewModel.RollbackTransactionCommand in LiteDB.Studio.Wpf/ViewModels/MainViewModel.cs (IAsyncRelayCommand): call IDatabaseService.RollbackTransactionAsync
-- [ ] T112 [US6] Subscribe to IDatabaseService.TransactionStateChanged event in MainViewModel constructor in LiteDB.Studio.Wpf/ViewModels/MainViewModel.cs to update TransactionActive property
-- [ ] T113 [US6] Add CanExecute logic to transaction commands in MainViewModel: BeginTransactionCommand requires !TransactionActive, CommitTransactionCommand and RollbackTransactionCommand require TransactionActive
-- [ ] T114 [US6] Add Transaction menu to MainWindow.xaml with Begin, Commit, Rollback commands
-- [ ] T115 [US6] Review LiteDB.Studio/Classes/Debugger for breakpoint and step logic (WinForms implementation)
-- [ ] T116 [US6] Port debugger ViewModel in LiteDB.Studio.Wpf/ViewModels/DebuggerViewModel.cs with breakpoint management and step commands
-- [ ] T117 [US6] Port debugger View in LiteDB.Studio.Wpf/Views/DebuggerView.xaml with breakpoint list and step controls
-- [ ] T118 [US6] Integrate DebuggerView into MainWindow.xaml (panel or tool window)
-- [ ] T119 [US6] Add integration test for transaction workflow: begin, insert, commit, verify data persisted
-- [ ] T120 [P] [US6] Add integration test for rollback workflow: begin, insert, rollback, verify data not persisted
-- [ ] T121 [P] [US6] Add unit test for transaction command state management (verify CanExecute logic)
+- [X] T109 [US6] Implement MainViewModel.BeginTransactionCommand in LiteDB.Studio.Wpf/ViewModels/MainViewModel.cs (IAsyncRelayCommand): call IDatabaseService.BeginTransactionAsync
+- [X] T110 [US6] Implement MainViewModel.CommitTransactionCommand in LiteDB.Studio.Wpf/ViewModels/MainViewModel.cs (IAsyncRelayCommand): call IDatabaseService.CommitTransactionAsync
+- [X] T111 [US6] Implement MainViewModel.RollbackTransactionCommand in LiteDB.Studio.Wpf/ViewModels/MainViewModel.cs (IAsyncRelayCommand): call IDatabaseService.RollbackTransactionAsync
+- [X] T112 [US6] Subscribe to IDatabaseService.TransactionStateChanged event in MainViewModel constructor in LiteDB.Studio.Wpf/ViewModels/MainViewModel.cs to update TransactionActive property
+- [X] T113 [US6] Add CanExecute logic to transaction commands in MainViewModel: BeginTransactionCommand requires !TransactionActive, CommitTransactionCommand and RollbackTransactionCommand require TransactionActive
+- [X] T114 [US6] Add Transaction menu to MainWindow.xaml with Begin, Commit, Rollback commands
+- [X] T115 [US6] Review LiteDB.Studio/Classes/Debugger for breakpoint and step logic (WinForms implementation)
+- [X] T116 [US6] Port debugger ViewModel in LiteDB.Studio.Wpf/ViewModels/DebuggerViewModel.cs with breakpoint management and step commands
+- [X] T117 [US6] Port debugger View in LiteDB.Studio.Wpf/Views/DebuggerView.xaml with breakpoint list and step controls
+- [X] T118 [US6] Integrate DebuggerView into MainWindow.xaml (panel or tool window)
+- [X] T119 [US6] Add integration test for transaction workflow: begin, insert, commit, verify data persisted
+- [X] T120 [P] [US6] Add integration test for rollback workflow: begin, insert, rollback, verify data not persisted
+- [X] T121 [P] [US6] Add unit test for transaction command state management (verify CanExecute logic)
 
 ---
 

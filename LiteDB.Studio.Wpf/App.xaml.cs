@@ -27,6 +27,8 @@ public partial class App
                 services.AddSingleton<IAppSettingsService, AppSettingsService>();
                 services.AddSingleton<DatabaseTreeViewModel>();
                 services.AddSingleton<DatabaseTreeView>();
+                services.AddSingleton<DebuggerViewModel>();
+                services.AddSingleton<DebuggerView>();
                 services.AddTransient<ConnectionManagerViewModel>();
                 services.AddTransient<ConnectionManagerWindow>();
             })

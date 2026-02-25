@@ -215,6 +215,41 @@ public class MainViewModelTests
         Assert.False(vm.SelectedTab.IsModified);
     }
 
+    [Fact]
+    public void TransactionCommands_CanExecute_ReflectsTransactionActiveState()
+    {
+        IDatabaseService mockDbService = Substitute.For<IDatabaseService>();
+        var vm = new MainViewModel(
+            mockDbService,
+            CreateTreeViewModel(mockDbService),
+            Substitute.For<IConnectionManagerDialogService>(),
+            Substitute.For<IDialogService>(),
+            Substitute.For<IFileDialogService>(),
+            Substitute.For<IFileService>(),
+            Substitute.For<IAppSettingsService>(),
+            NullLogger<MainViewModel>.Instance,
+            NullLoggerFactory.Instance);
+
+        // Initially no transaction active
+        Assert.True(vm.BeginTransactionCommand.CanExecute(null));
+        Assert.False(vm.CommitTransactionCommand.CanExecute(null));
+        Assert.False(vm.RollbackTransactionCommand.CanExecute(null));
+
+        // Simulate transaction begin via event
+        mockDbService.TransactionStateChanged += Raise.EventWith(new TransactionStateChangedEventArgs(true));
+
+        Assert.False(vm.BeginTransactionCommand.CanExecute(null));
+        Assert.True(vm.CommitTransactionCommand.CanExecute(null));
+        Assert.True(vm.RollbackTransactionCommand.CanExecute(null));
+
+        // Simulate transaction end via event
+        mockDbService.TransactionStateChanged += Raise.EventWith(new TransactionStateChangedEventArgs(false));
+
+        Assert.True(vm.BeginTransactionCommand.CanExecute(null));
+        Assert.False(vm.CommitTransactionCommand.CanExecute(null));
+        Assert.False(vm.RollbackTransactionCommand.CanExecute(null));
+    }
+
     private static DatabaseTreeViewModel CreateTreeViewModel(
         IDatabaseService databaseService)
     {

@@ -104,6 +104,9 @@ public partial class MainViewModel : ShellContentViewModel
         OpenFileCommand = new AsyncRelayCommand(OpenFileAsync);
         SaveFileCommand = new AsyncRelayCommand(SaveFileAsync);
         SaveAllCommand = new AsyncRelayCommand(SaveAllAsync);
+        BeginTransactionCommand = new AsyncRelayCommand(BeginTransactionAsync, () => !TransactionActive);
+        CommitTransactionCommand = new AsyncRelayCommand(CommitTransactionAsync, () => TransactionActive);
+        RollbackTransactionCommand = new AsyncRelayCommand(RollbackTransactionAsync, () => TransactionActive);
     }
 
     public void Initialize()
@@ -122,6 +125,13 @@ public partial class MainViewModel : ShellContentViewModel
         {
             _ = OpenRecentAsync(last, CancellationToken.None);
         }
+    }
+
+    partial void OnTransactionActiveChanged(bool value)
+    {
+        BeginTransactionCommand.NotifyCanExecuteChanged();
+        CommitTransactionCommand.NotifyCanExecuteChanged();
+        RollbackTransactionCommand.NotifyCanExecuteChanged();
     }
 
     // Update the shell window title when the current database changes
@@ -156,6 +166,9 @@ public partial class MainViewModel : ShellContentViewModel
     public IAsyncRelayCommand OpenFileCommand { get; }
     public IAsyncRelayCommand SaveFileCommand { get; }
     public IAsyncRelayCommand SaveAllCommand { get; }
+    public IAsyncRelayCommand BeginTransactionCommand { get; }
+    public IAsyncRelayCommand CommitTransactionCommand { get; }
+    public IAsyncRelayCommand RollbackTransactionCommand { get; }
 
     public TabViewModel? SelectedTab
     {
@@ -502,6 +515,45 @@ public partial class MainViewModel : ShellContentViewModel
     private void OnTransactionStateChanged(object? sender, TransactionStateChangedEventArgs e)
     {
         TransactionActive = e.TransactionActive;
+    }
+
+    private async Task BeginTransactionAsync(CancellationToken cancellationToken)
+    {
+        try
+        {
+            await _dbService.BeginTransactionAsync(cancellationToken);
+        }
+        catch (Exception ex)
+        {
+            Logger.LogError(ex, "Error beginning transaction");
+            CursorText = "Error: " + ex.Message;
+        }
+    }
+
+    private async Task CommitTransactionAsync(CancellationToken cancellationToken)
+    {
+        try
+        {
+            await _dbService.CommitTransactionAsync(cancellationToken);
+        }
+        catch (Exception ex)
+        {
+            Logger.LogError(ex, "Error committing transaction");
+            CursorText = "Error: " + ex.Message;
+        }
+    }
+
+    private async Task RollbackTransactionAsync(CancellationToken cancellationToken)
+    {
+        try
+        {
+            await _dbService.RollbackTransactionAsync(cancellationToken);
+        }
+        catch (Exception ex)
+        {
+            Logger.LogError(ex, "Error rolling back transaction");
+            CursorText = "Error: " + ex.Message;
+        }
     }
 
     public override void RegisterMessengerReceivers()

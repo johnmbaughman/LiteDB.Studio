@@ -11,10 +11,11 @@ public partial class MainWindow : IShellContentView, IView
 {
     private readonly MainViewModel _viewModel;
 
-    public MainWindow(MainViewModel viewModel, DatabaseTreeView databaseTreeView)
+    public MainWindow(MainViewModel viewModel, DatabaseTreeView databaseTreeView, DebuggerView debuggerView)
     {
         ArgumentNullException.ThrowIfNull(viewModel);
         ArgumentNullException.ThrowIfNull(databaseTreeView);
+        ArgumentNullException.ThrowIfNull(debuggerView);
 
         _viewModel = viewModel;
 
@@ -24,6 +25,7 @@ public partial class MainWindow : IShellContentView, IView
 
         // Set the DatabaseTreeView's Content property after InitializeComponent
         DatabaseTreeViewHost.Content = databaseTreeView;
+        DebuggerViewHost.Content = debuggerView;
 
         Loaded += async (_, _) =>
         {

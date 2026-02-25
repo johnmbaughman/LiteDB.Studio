@@ -179,7 +179,7 @@
                         </Button>
                         <Button
                             Margin="0,0,6,0"
-                            IsEnabled="{Binding IsConnected}"
+                            Command="{Binding SaveFileCommand}"
                             ToolTip="Save">
                             <StackPanel VerticalAlignment="Center" Orientation="Horizontal">
                                 <util:GrayableImage
@@ -197,8 +197,8 @@
 
                         <Button
                             Margin="6,0,6,0"
-                            IsEnabled="{Binding IsConnected}"
-                            ToolTip="Begin">
+                            Command="{Binding BeginTransactionCommand}"
+                            ToolTip="Begin transaction">
                             <StackPanel VerticalAlignment="Center" Orientation="Horizontal">
                                 <util:GrayableImage
                                     Width="16"
@@ -212,8 +212,8 @@
                         </Button>
                         <Button
                             Margin="0,0,6,0"
-                            IsEnabled="{Binding IsConnected}"
-                            ToolTip="Commit">
+                            Command="{Binding CommitTransactionCommand}"
+                            ToolTip="Commit transaction">
                             <StackPanel VerticalAlignment="Center" Orientation="Horizontal">
                                 <util:GrayableImage
                                     Width="16"
@@ -227,8 +227,8 @@
                         </Button>
                         <Button
                             Margin="0,0,6,0"
-                            IsEnabled="{Binding IsConnected}"
-                            ToolTip="Rollback">
+                            Command="{Binding RollbackTransactionCommand}"
+                            ToolTip="Rollback transaction">
                             <StackPanel VerticalAlignment="Center" Orientation="Horizontal">
                                 <util:GrayableImage
                                     Width="16"
@@ -304,12 +304,27 @@
                 </Border>
             </Grid>
         </DockPanel>
-        <ContentControl
-            x:Name="DatabaseTreeViewHost"
+        <!--  Left panel: tree view + debugger  -->
+        <Grid
             Grid.Row="1"
-            Grid.Column="0"
-            Margin="4"
-            Visibility="{Binding IsConnected, Converter={StaticResource BoolToVis}}" />
+            Grid.Column="0">
+            <Grid.RowDefinitions>
+                <RowDefinition Height="*" />
+                <RowDefinition Height="Auto" />
+            </Grid.RowDefinitions>
+            <ContentControl
+                x:Name="DatabaseTreeViewHost"
+                Grid.Row="0"
+                Margin="4"
+                Visibility="{Binding IsConnected, Converter={StaticResource BoolToVis}}" />
+            <Border
+                Grid.Row="1"
+                BorderBrush="#FFCCCCCC"
+                BorderThickness="0,1,0,0"
+                Visibility="{Binding IsConnected, Converter={StaticResource BoolToVis}}">
+                <ContentControl x:Name="DebuggerViewHost" />
+            </Border>
+        </Grid>
         <!--  Splitter between tree and editor  -->
         <GridSplitter
             Grid.Row="1"
