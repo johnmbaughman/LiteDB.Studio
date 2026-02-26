@@ -5,7 +5,10 @@ using Microsoft.Extensions.Logging;
 
 namespace LiteDB.Studio.Wpf.ViewModels;
 
-public sealed partial class TabManager : ObservableObject
+/// <summary>
+/// Manages the collection of editor tabs, including creation, selection, closure, and snippet insertion.
+/// </summary>
+public sealed class TabManager : ObservableObject
 {
     private readonly IDatabaseService _databaseService;
     private readonly ILoggerFactory _loggerFactory;
@@ -14,6 +17,11 @@ public sealed partial class TabManager : ObservableObject
 
     private TabViewModel? _selectedTab;
 
+    /// <summary>Initializes a new <see cref="TabManager"/> with a single placeholder plus-tab.</summary>
+    /// <param name="databaseService">Database service passed to each new <see cref="TabViewModel"/>.</param>
+    /// <param name="loggerFactory">Logger factory passed to each new <see cref="TabViewModel"/>.</param>
+    /// <param name="dialogService">Optional dialog service for unsaved-changes prompts.</param>
+    /// <param name="saveDelegate">Optional delegate invoked when a tab's content should be saved.</param>
     public TabManager(IDatabaseService databaseService, ILoggerFactory loggerFactory, IDialogService? dialogService = null, Func<TabViewModel, CancellationToken, Task>? saveDelegate = null)
     {
         _databaseService = databaseService ?? throw new ArgumentNullException(nameof(databaseService));
@@ -24,8 +32,10 @@ public sealed partial class TabManager : ObservableObject
         Tabs = [new TabViewModel(_databaseService, _loggerFactory, _dialogService) { Title = "+", IsPlus = true }];
     }
 
+    /// <summary>Gets the observable collection of tabs displayed in the UI (includes the plus-tab).</summary>
     public ObservableCollection<TabViewModel> Tabs { get; }
 
+    /// <summary>Gets or sets the currently selected tab. Selecting the plus-tab automatically opens a new tab.</summary>
     public TabViewModel? SelectedTab
     {
         get => _selectedTab;
@@ -43,10 +53,13 @@ public sealed partial class TabManager : ObservableObject
         }
     }
 
+    /// <summary>Gets a value indicating whether any non-plus tab has unsaved changes.</summary>
     public bool HasUnsavedTabs => Tabs.Any(t => t is { IsModified: true, IsPlus: false });
 
+    /// <summary>Gets a value indicating whether at least one non-plus tab exists.</summary>
     public bool HasUserTabs => Tabs.Any(t => !t.IsPlus);
 
+    /// <summary>Creates a new query tab, inserts it before the plus-tab, and selects it.</summary>
     public void AddNewTab()
     {
         var newTab = new TabViewModel(_databaseService, _loggerFactory, _dialogService) { Title = $"Query {Tabs.Count}" };
@@ -70,6 +83,8 @@ public sealed partial class TabManager : ObservableObject
         SelectedTab = newTab;
     }
 
+    /// <summary>Removes <paramref name="tab"/> from the tab list, creating a replacement tab if none remain.</summary>
+    /// <param name="tab">The tab to close. Null or the plus-tab are silently ignored.</param>
     public void CloseTab(TabViewModel? tab)
     {
         if (tab == null || tab.IsPlus) {
@@ -103,6 +118,8 @@ public sealed partial class TabManager : ObservableObject
         }
     }
 
+    /// <summary>Inserts <paramref name="snippet"/> at the caret position of the selected tab.</summary>
+    /// <param name="snippet">Text to insert, or <c>null</c>/<c>""</c> to no-op.</param>
     public void InsertSnippet(string? snippet)
     {
         if (SelectedTab == null || string.IsNullOrEmpty(snippet)) {
@@ -125,6 +142,10 @@ public sealed partial class TabManager : ObservableObject
         SelectedTab.IsModified = true;
     }
 
+    /// <summary>
+    /// Places <paramref name="sql"/> into the current tab (if empty) or opens a new tab containing it.
+    /// </summary>
+    /// <param name="sql">SQL text to place. Whitespace-only values are ignored.</param>
     public void AddSqlSnippet(string sql)
     {
         if (string.IsNullOrWhiteSpace(sql)) {
@@ -170,6 +191,8 @@ public sealed partial class TabManager : ObservableObject
         }
     }
 
+    /// <summary>Always opens a new tab and sets its content to <paramref name="sql"/>.</summary>
+    /// <param name="sql">SQL text to place. Whitespace-only values are ignored.</param>
     public void AddSqlSnippetInNewTab(string sql)
     {
         if (string.IsNullOrWhiteSpace(sql)) {

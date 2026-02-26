@@ -45,14 +45,6 @@ public partial class ShellViewModel : ViewModel, IShellViewModel {
     public IShellContentView MainContentView { get; }
 
     /// <summary>
-    /// Cleanups the asynchronous.
-    /// </summary>
-    /// <returns>Task.</returns>
-    public Task CleanupAsync() {
-        return Task.CompletedTask;
-    }
-
-    /// <summary>
     /// Registers the messenger receivers.
     /// </summary>
     /// <remarks>Called by ShellViewModel during constructor execution.

@@ -200,7 +200,7 @@ public static class AvalonEditBehaviors
         {
             var cmd = e.NewValue as ICommand;
             // Find existing Ctrl+Space keybinding if present
-            KeyBinding? existing = editor.InputBindings.OfType<KeyBinding>().FirstOrDefault(kb => kb.Key == Key.Space && kb.Modifiers == ModifierKeys.Control);
+            KeyBinding? existing = editor.InputBindings.OfType<KeyBinding>().FirstOrDefault(kb => kb is { Key: Key.Space, Modifiers: ModifierKeys.Control });
             if (existing != null)
             {
                 existing.Command = cmd;

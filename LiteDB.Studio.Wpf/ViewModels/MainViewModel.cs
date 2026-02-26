@@ -3,7 +3,6 @@ using CommunityToolkit.Mvvm.Input;
 using LiteDB.Studio.Wpf.Services;
 using Microsoft.Extensions.Logging;
 using System.Collections.ObjectModel;
-using System.Data;
 using System.Globalization;
 using System.IO;
 using LiteDB.Studio.Mvvm.ViewModels.Shell;
@@ -37,11 +36,13 @@ public partial class MainViewModel : ShellContentViewModel
     private bool _loadLastDatabaseOnStartup;
     private readonly TabManager _tabManager;
 
+    /// <summary>Gets the observable collection of editor tabs (includes the plus-tab).</summary>
     public ObservableCollection<TabViewModel> Tabs => _tabManager.Tabs;
+    /// <summary>Gets the list of recently opened database file paths.</summary>
     public ObservableCollection<string> RecentDatabases { get; } = [];
 
+    /// <summary>Gets the database tree view model.</summary>
     public DatabaseTreeViewModel Tree { get; }
-    public DataTable CurrentResults { get; } = new();
 
     public MainViewModel(
         IDatabaseService dbService,
@@ -109,6 +110,7 @@ public partial class MainViewModel : ShellContentViewModel
         RollbackTransactionCommand = new AsyncRelayCommand(RollbackTransactionAsync, () => TransactionActive);
     }
 
+    /// <summary>Loads persisted recent databases and optionally auto-opens the last-used database.</summary>
     public void Initialize()
     {
         // load persisted recent list
@@ -151,31 +153,51 @@ public partial class MainViewModel : ShellContentViewModel
         }
     }
 
+    /// <summary>Command that shows the connection dialog and connects to the selected database.</summary>
     public IAsyncRelayCommand ConnectCommand { get; }
+    /// <summary>Command that disconnects from the current database.</summary>
     public IRelayCommand DisconnectCommand { get; }
+    /// <summary>Command that executes the query in the selected tab.</summary>
     public IRelayCommand RunCommand { get; }
+    /// <summary>Command that opens a new empty query tab.</summary>
     public IRelayCommand NewTabCommand { get; }
+    /// <summary>Command that closes the specified tab.</summary>
     public IAsyncRelayCommand<TabViewModel> CloseTabCommand { get; }
+    /// <summary>Command that connects to a recently-used database by file path.</summary>
     public IAsyncRelayCommand<object> OpenRecentCommand { get; }
+    /// <summary>Non-async wrapper around <see cref="OpenRecentCommand"/> suitable for XAML <c>Command</c> bindings.</summary>
     public IRelayCommand<object> OpenRecentWrapperCommand { get; }
+    /// <summary>Command that removes all entries from the recent-databases list.</summary>
     public IRelayCommand ClearRecentCommand { get; }
+    /// <summary>Command that removes non-existent files from the recent-databases list.</summary>
     public IRelayCommand ValidateRecentCommand { get; }
+    /// <summary>Command that reloads the database tree from the service.</summary>
     public IAsyncRelayCommand RefreshTreeCommand { get; }
+    /// <summary>Command that inserts a snippet string at the caret of the selected tab.</summary>
     public IRelayCommand<string> InsertSnippetCommand { get; }
+    /// <summary>Command that re-opens the last-used database.</summary>
     public IRelayCommand LoadLastDatabaseCommand { get; }
+    /// <summary>Command that shows an open-file dialog and loads a SQL file into a new tab.</summary>
     public IAsyncRelayCommand OpenFileCommand { get; }
+    /// <summary>Command that saves the selected tab's content to its associated file.</summary>
     public IAsyncRelayCommand SaveFileCommand { get; }
+    /// <summary>Command that saves all modified tabs to their associated files.</summary>
     public IAsyncRelayCommand SaveAllCommand { get; }
+    /// <summary>Command that begins a database transaction. Enabled only when no transaction is active.</summary>
     public IAsyncRelayCommand BeginTransactionCommand { get; }
+    /// <summary>Command that commits the active database transaction.</summary>
     public IAsyncRelayCommand CommitTransactionCommand { get; }
+    /// <summary>Command that rolls back the active database transaction.</summary>
     public IAsyncRelayCommand RollbackTransactionCommand { get; }
 
+    /// <summary>Gets or sets the currently selected editor tab.</summary>
     public TabViewModel? SelectedTab
     {
         get => _tabManager.SelectedTab;
         set => _tabManager.SelectedTab = value;
     }
 
+    /// <summary>Gets or sets whether the last-used database is opened automatically on startup.</summary>
     public bool LoadLastDatabaseOnStartup
     {
         get => _loadLastDatabaseOnStartup;
@@ -373,16 +395,23 @@ public partial class MainViewModel : ShellContentViewModel
         }
     }
 
+    /// <summary>Places <paramref name="sql"/> into the current or a new editor tab.</summary>
+    /// <param name="sql">SQL text to insert.</param>
     public void AddSqlSnippet(string sql)
     {
         _tabManager.AddSqlSnippet(sql);
     }
 
+    /// <summary>Always opens a new editor tab and sets its content to <paramref name="sql"/>.</summary>
+    /// <param name="sql">SQL text to insert.</param>
     public void AddSqlSnippetInNewTab(string sql)
     {
         _tabManager.AddSqlSnippetInNewTab(sql);
     }
 
+    /// <summary>Connects to the database identified by <paramref name="filename"/>.</summary>
+    /// <param name="filename">File path boxed as <see cref="object"/>, or a plain <see cref="string"/>.</param>
+    /// <param name="cancellationToken">Token used to cancel the operation.</param>
     public async Task OpenRecentAsync(object? filename, CancellationToken cancellationToken)
     {
         var fName = filename as string;
@@ -556,6 +585,7 @@ public partial class MainViewModel : ShellContentViewModel
         }
     }
 
+    /// <inheritdoc />
     public override void RegisterMessengerReceivers()
     {
 

@@ -9,6 +9,7 @@ using Xunit;
 
 namespace LiteDB.Studio.Wpf.Tests.Controls;
 
+/// <summary>Unit tests for <see cref="AvalonEditBehaviors"/> attached properties, running on an STA thread.</summary>
 public class AvalonEditBehaviorsTests
 {
     private static void RunInSta(Action action)
@@ -136,7 +137,7 @@ public class AvalonEditBehaviorsTests
 
     private class TestCommand(Action action) : ICommand
     {
-        public event EventHandler? CanExecuteChanged;
+        public event EventHandler? CanExecuteChanged { add { } remove { } }
         public bool CanExecute(object? parameter) => true;
         public void Execute(object? parameter) => action();
     }

@@ -1,4 +1,3 @@
-using System.Windows;
 using LiteDB.Studio.Mvvm.ViewModels;
 using LiteDB.Studio.Mvvm.ViewModels.Shell;
 using LiteDB.Studio.Mvvm.Views;

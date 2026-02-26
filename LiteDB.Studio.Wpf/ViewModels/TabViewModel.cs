@@ -5,12 +5,14 @@ using Microsoft.Extensions.Logging;
 
 namespace LiteDB.Studio.Wpf.ViewModels;
 
+/// <summary>ViewModel for a single editor tab, owning the editor text, caret state, query execution, and result display.</summary>
 public partial class TabViewModel : ObservableObject
 {
     private readonly IDatabaseService _databaseService;
     private readonly ILogger<TabViewModel> _logger;
     private readonly IDialogService? _dialogService;
 
+    /// <summary>Gets or sets an optional delegate invoked when the tab is saved (wired up by <see cref="TabManager"/>).</summary>
     public Func<CancellationToken, Task>? SaveAction { get; set; }
 
     [ObservableProperty]
@@ -66,8 +68,11 @@ public partial class TabViewModel : ObservableObject
         CloseCommand = new AsyncRelayCommand(ExecuteCloseAsync);
     }
 
+    /// <summary>Command that executes the current editor text (or selection) against the database.</summary>
     public IAsyncRelayCommand RunCommand { get; }
+    /// <summary>Command that fetches and exposes collection-name completion items.</summary>
     public IAsyncRelayCommand ShowCompletionCommand { get; }
+    /// <summary>Command that closes this tab, prompting to save unsaved changes when applicable.</summary>
     public IAsyncRelayCommand CloseCommand { get; }
 
     private async Task ExecuteRunAsync(CancellationToken cancellationToken)
@@ -127,9 +132,8 @@ public partial class TabViewModel : ObservableObject
         ResultGridViewModel.QueryResult = value;
     }
 
-    /// <summary>
-    /// Returns collection completion items by querying the live database service.
-    /// </summary>
+    /// <summary>Returns collection completion items by querying the live database service.</summary>
+    /// <param name="cancellationToken">Token used to cancel the operation.</param>
     public async Task<IEnumerable<CompletionItem>> GetCollectionCompletionsAsync(CancellationToken cancellationToken = default)
     {
         var list = new List<CompletionItem>();

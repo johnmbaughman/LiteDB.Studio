@@ -13,6 +13,7 @@ public abstract class ShellContentViewModel : ViewModel, IShellContentViewModel 
     /// </summary>
     protected ShellContentViewModel(Microsoft.Extensions.Logging.ILogger logger) : base(logger) { }
 
+    /// <summary>Gets or sets the shell view model this content is hosted within.</summary>
     public IShellViewModel ShellViewModel {
         get => _shellViewModel;
         set => SetProperty(ref _shellViewModel, value);

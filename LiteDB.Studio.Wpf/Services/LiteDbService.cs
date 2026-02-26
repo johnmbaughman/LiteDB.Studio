@@ -6,38 +6,44 @@ using Serilog;
 
 namespace LiteDB.Studio.Wpf.Services;
 
-public class LiteDbService : IDatabaseService, IAsyncDisposable
+/// <summary>
+/// Concrete <see cref="IDatabaseService"/> implementation backed by <see cref="LiteDatabase"/>.
+/// </summary>
+public class LiteDbService(IOptions<LiteDbOptions>? options = null) : IDatabaseService
 {
-    private readonly int _maxRows;
+    private readonly int _maxRows = options?.Value.MaxRows ?? LiteDbOptions.DEFAULT_MAX_ROWS;
     private LiteDatabase? _db;
     private readonly Lock _sync = new();
 
-    public LiteDbService(IOptions<LiteDbOptions>? options = null)
-    {
-        _maxRows = options?.Value.MaxRows ?? LiteDbOptions.DefaultMaxRows;
-    }
-
+    /// <inheritdoc />
     public bool IsConnected => _db != null;
 
+    /// <inheritdoc />
     public bool TransactionActive { get; private set; }
 
+    /// <inheritdoc />
     public event EventHandler<ConnectionStateChangedEventArgs>? ConnectionStateChanged;
+    /// <inheritdoc />
     public event EventHandler<TransactionStateChangedEventArgs>? TransactionStateChanged;
 
+    /// <inheritdoc />
     public void Dispose()
     {
         // Perform synchronous disconnect without blocking on async calls
         DoDisconnect();
     }
 
+    /// <inheritdoc />
     public async ValueTask DisposeAsync()
     {
         // Support async disposal for callers who want to await it
         await DisconnectAsync().ConfigureAwait(false);
     }
 
+    /// <inheritdoc />
     public object? Database => _db;
 
+    /// <inheritdoc />
     public void Disconnect()
     {
         // Synchronous disconnect
@@ -70,6 +76,7 @@ public class LiteDbService : IDatabaseService, IAsyncDisposable
         }
     }
 
+    /// <inheritdoc />
     public Task ConnectAsync(string connectionString, CancellationToken cancellationToken)
     {
         cancellationToken.ThrowIfCancellationRequested();
@@ -105,6 +112,7 @@ public class LiteDbService : IDatabaseService, IAsyncDisposable
         return Task.CompletedTask;
     }
 
+    /// <inheritdoc />
     public Task DisconnectAsync()
     {
         // Reuse synchronous disconnect implementation for now. This keeps the method fast and avoids sync-over-async.
@@ -112,6 +120,7 @@ public class LiteDbService : IDatabaseService, IAsyncDisposable
         return Task.CompletedTask;
     }
 
+    /// <inheritdoc />
     public Task<QueryResult> ExecuteAsync(string? query, CancellationToken cancellationToken)
     {
         cancellationToken.ThrowIfCancellationRequested();
@@ -186,6 +195,7 @@ public class LiteDbService : IDatabaseService, IAsyncDisposable
         }
     }
 
+    /// <inheritdoc />
     public Task<IEnumerable<string>> GetCollectionNamesAsync(CancellationToken cancellationToken)
     {
         cancellationToken.ThrowIfCancellationRequested();
@@ -199,6 +209,7 @@ public class LiteDbService : IDatabaseService, IAsyncDisposable
         return Task.FromResult<IEnumerable<string>>(names);
     }
 
+    /// <inheritdoc />
     public Task<IEnumerable<string>> GetSystemCollectionNamesAsync(CancellationToken cancellationToken)
     {
         cancellationToken.ThrowIfCancellationRequested();
@@ -240,6 +251,7 @@ public class LiteDbService : IDatabaseService, IAsyncDisposable
         return Task.FromResult<IEnumerable<string>>(namesFallback);
     }
 
+    /// <inheritdoc />
     public Task<IEnumerable<ColumnInfo>> GetCollectionSchemaAsync(string collectionName, CancellationToken cancellationToken)
     {
         cancellationToken.ThrowIfCancellationRequested();
@@ -276,6 +288,7 @@ public class LiteDbService : IDatabaseService, IAsyncDisposable
         return Task.FromResult<IEnumerable<ColumnInfo>>(columns);
     }
 
+    /// <inheritdoc />
     public Task UpdateDocumentFieldAsync(string collectionName, object documentId, string fieldPath, object? newValue, CancellationToken cancellationToken)
     {
         cancellationToken.ThrowIfCancellationRequested();
@@ -312,6 +325,7 @@ public class LiteDbService : IDatabaseService, IAsyncDisposable
             : Task.CompletedTask;
     }
 
+    /// <inheritdoc />
     public Task BeginTransactionAsync(CancellationToken cancellationToken)
     {
         cancellationToken.ThrowIfCancellationRequested();
@@ -331,6 +345,7 @@ public class LiteDbService : IDatabaseService, IAsyncDisposable
         return Task.CompletedTask;
     }
 
+    /// <inheritdoc />
     public Task CommitTransactionAsync(CancellationToken cancellationToken)
     {
         cancellationToken.ThrowIfCancellationRequested();
@@ -350,6 +365,7 @@ public class LiteDbService : IDatabaseService, IAsyncDisposable
         return Task.CompletedTask;
     }
 
+    /// <inheritdoc />
     public Task RollbackTransactionAsync(CancellationToken cancellationToken)
     {
         cancellationToken.ThrowIfCancellationRequested();
@@ -369,6 +385,7 @@ public class LiteDbService : IDatabaseService, IAsyncDisposable
         return Task.CompletedTask;
     }
 
+    /// <inheritdoc />
     public Task CheckpointAsync(CancellationToken cancellationToken)
     {
         cancellationToken.ThrowIfCancellationRequested();

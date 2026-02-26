@@ -8,6 +8,7 @@ using Xunit;
 
 namespace LiteDB.Studio.Wpf.Tests.ViewModels;
 
+/// <summary>Unit tests for <see cref="DbTreeNode"/>.</summary>
 public class DbTreeNodeTests
 {
     [Fact]

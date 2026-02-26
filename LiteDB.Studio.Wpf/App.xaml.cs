@@ -9,7 +9,7 @@ using Serilog;
 
 namespace LiteDB.Studio.Wpf;
 
-public partial class App 
+public partial class App
 {
     public App()
     {
@@ -41,25 +41,7 @@ public partial class App
         await StartApplicationAsync("LiteDB.Studio.Wpf", e);
         ShowMainWindow();
     }
-
-    //private static void App_DispatcherUnhandledException(object sender, System.Windows.Threading.DispatcherUnhandledExceptionEventArgs e)
-    //{
-    //    Log.Fatal(e.Exception, "Unhandled exception in UI thread: {Message}", e.Exception.Message);
-    //    // Optionally set e.Handled = true to prevent app crash, but for unhandled, let it crash
-    //}
-
-    //private static void CurrentDomain_UnhandledException(object sender, UnhandledExceptionEventArgs e)
-    //{
-    //    if (e.ExceptionObject is Exception ex)
-    //    {
-    //        Log.Fatal(ex, "Unhandled exception in background thread: {Message}", ex.Message);
-    //    }
-    //    else
-    //    {
-    //        Log.Fatal("Unhandled exception in background thread: {ExceptionObject}", e.ExceptionObject);
-    //    }
-    //}
-
+    
     protected override async void OnExit(ExitEventArgs e)
     {
         try

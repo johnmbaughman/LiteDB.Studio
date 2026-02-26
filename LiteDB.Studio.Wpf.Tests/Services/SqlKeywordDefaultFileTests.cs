@@ -7,6 +7,7 @@ using Xunit;
 
 namespace LiteDB.Studio.Wpf.Tests.Services;
 
+/// <summary>Tests that verify the bundled default SQL keywords file is present and complete.</summary>
 public class SqlKeywordDefaultFileTests
 {
     [Fact]

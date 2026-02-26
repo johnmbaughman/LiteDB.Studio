@@ -4,6 +4,7 @@ using Xunit;
 
 namespace LiteDB.Studio.Wpf.Tests.UI;
 
+/// <summary>Tests that verify key XAML declarations in <c>MainWindow.xaml</c> are present.</summary>
 public class MainWindowXamlTests
 {
     [Fact]

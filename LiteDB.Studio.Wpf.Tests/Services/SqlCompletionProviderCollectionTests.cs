@@ -8,6 +8,7 @@ using Xunit;
 
 namespace LiteDB.Studio.Wpf.Tests.Services;
 
+/// <summary>Tests for <see cref="SqlCompletionProvider.GetCollectionCompletionsAsync"/>.</summary>
 public class SqlCompletionProviderCollectionTests
 {
     [Fact]

@@ -1,16 +1,18 @@
+using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
 using LiteDB.Studio.Wpf.Services;
 using LiteDB.Studio.Wpf.ViewModels;
-using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Logging.Abstractions;
 using NSubstitute;
 using Xunit;
 
 namespace LiteDB.Studio.Wpf.Tests.ViewModels;
 
+/// <summary>Unit tests for <see cref="MainViewModel"/>.</summary>
 public class MainViewModelTests
 {
+    /// <summary>Initialises the shared application host before each test.</summary>
     public MainViewModelTests()
     {
         TestAppHostInitializer.EnsureInitialized();
@@ -46,7 +48,7 @@ public class MainViewModelTests
     public void Initialize_PopulatesRecentDatabases_FromAppSettingsService()
     {
         IDatabaseService? mockDbService = Substitute.For<IDatabaseService>();
-        var settings = new LiteDB.Studio.Wpf.Util.ApplicationSettings();
+        var settings = new Util.ApplicationSettings();
         settings.RecentConnectionStrings.Add(new ConnectionString("test.db"));
 
         IAppSettingsService appSettings = Substitute.For<IAppSettingsService>();
@@ -248,6 +250,111 @@ public class MainViewModelTests
         Assert.True(vm.BeginTransactionCommand.CanExecute(null));
         Assert.False(vm.CommitTransactionCommand.CanExecute(null));
         Assert.False(vm.RollbackTransactionCommand.CanExecute(null));
+    }
+
+    [Fact]
+    public void NewTabCommand_AddsTabAndSelectsIt()
+    {
+        IDatabaseService mockDbService = Substitute.For<IDatabaseService>();
+        var vm = new MainViewModel(
+            mockDbService,
+            CreateTreeViewModel(mockDbService),
+            Substitute.For<IConnectionManagerDialogService>(),
+            Substitute.For<IDialogService>(),
+            Substitute.For<IFileDialogService>(),
+            Substitute.For<IFileService>(),
+            Substitute.For<IAppSettingsService>(),
+            NullLogger<MainViewModel>.Instance,
+            NullLoggerFactory.Instance);
+
+        var initialCount = vm.Tabs.Count;
+
+        vm.NewTabCommand.Execute(null);
+
+        Assert.Equal(initialCount + 1, vm.Tabs.Count);
+        Assert.NotNull(vm.SelectedTab);
+        Assert.False(vm.SelectedTab!.IsPlus);
+    }
+
+    [Fact]
+    public async Task CloseTabCommand_RemovesTabAndKeepsOneOpen()
+    {
+        IDatabaseService mockDbService = Substitute.For<IDatabaseService>();
+        var vm = new MainViewModel(
+            mockDbService,
+            CreateTreeViewModel(mockDbService),
+            Substitute.For<IConnectionManagerDialogService>(),
+            Substitute.For<IDialogService>(),
+            Substitute.For<IFileDialogService>(),
+            Substitute.For<IFileService>(),
+            Substitute.For<IAppSettingsService>(),
+            NullLogger<MainViewModel>.Instance,
+            NullLoggerFactory.Instance);
+
+        vm.NewTabCommand.Execute(null);
+        TabViewModel? tab = vm.SelectedTab;
+        Assert.NotNull(tab);
+
+        tab.IsModified = false;
+
+        await vm.CloseTabCommand.ExecuteAsync(tab);
+
+        Assert.DoesNotContain(tab, vm.Tabs);
+        Assert.Contains(vm.Tabs, t => !t.IsPlus);
+    }
+
+    [Fact]
+    public async Task RefreshTreeCommand_LoadsRootNodes()
+    {
+        IDatabaseService mockDbService = Substitute.For<IDatabaseService>();
+        mockDbService.GetCollectionNamesAsync(Arg.Any<CancellationToken>())
+            .Returns([]);
+        mockDbService.GetSystemCollectionNamesAsync(Arg.Any<CancellationToken>())
+            .Returns([]);
+
+        var vm = new MainViewModel(
+            mockDbService,
+            CreateTreeViewModel(mockDbService),
+            Substitute.For<IConnectionManagerDialogService>(),
+            Substitute.For<IDialogService>(),
+            Substitute.For<IFileDialogService>(),
+            Substitute.For<IFileService>(),
+            Substitute.For<IAppSettingsService>(),
+            NullLogger<MainViewModel>.Instance,
+            NullLoggerFactory.Instance);
+
+        vm.Tree.RootNodes.Add(new DbTreeNode(mockDbService, Substitute.For<IDialogService>(), Substitute.For<IFileDialogService>(), Substitute.For<IFileService>()));
+
+        await vm.RefreshTreeCommand.ExecuteAsync(null);
+
+        await mockDbService.Received(1).GetCollectionNamesAsync(Arg.Any<CancellationToken>());
+        await mockDbService.Received(1).GetSystemCollectionNamesAsync(Arg.Any<CancellationToken>());
+        Assert.NotEmpty(vm.Tree.RootNodes);
+    }
+
+    [Fact]
+    public void InsertSnippetCommand_InsertsAtCaret()
+    {
+        IDatabaseService mockDbService = Substitute.For<IDatabaseService>();
+        var vm = new MainViewModel(
+            mockDbService,
+            CreateTreeViewModel(mockDbService),
+            Substitute.For<IConnectionManagerDialogService>(),
+            Substitute.For<IDialogService>(),
+            Substitute.For<IFileDialogService>(),
+            Substitute.For<IFileService>(),
+            Substitute.For<IAppSettingsService>(),
+            NullLogger<MainViewModel>.Instance,
+            NullLoggerFactory.Instance);
+
+        vm.NewTabCommand.Execute(null);
+        vm.SelectedTab!.EditorText = "ABC";
+        vm.SelectedTab.CaretOffset = 1;
+
+        vm.InsertSnippetCommand.Execute("X");
+
+        Assert.Equal("AXBC", vm.SelectedTab.EditorText);
+        Assert.True(vm.SelectedTab.IsModified);
     }
 
     private static DatabaseTreeViewModel CreateTreeViewModel(

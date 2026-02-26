@@ -1,22 +1,25 @@
 using System.Collections.ObjectModel;
 using CommunityToolkit.Mvvm.ComponentModel;
 using LiteDB.Studio.Wpf.Services;
-using LiteDB.Studio.Wpf.Util;
 using Microsoft.Extensions.Logging;
 
 namespace LiteDB.Studio.Wpf.ViewModels;
 
+/// <summary>ViewModel that backs the result grid, managing column descriptors and cell-update operations.</summary>
 public partial class ResultGridViewModel(IDatabaseService databaseService, ILogger<ResultGridViewModel> logger) : ObservableObject
 {
     private readonly IDatabaseService _databaseService = databaseService ?? throw new ArgumentNullException(nameof(databaseService));
     private readonly ILogger<ResultGridViewModel> _logger = logger ?? throw new ArgumentNullException(nameof(logger));
 
+    /// <summary>Gets or sets the name of the collection whose rows are displayed. Used for inline edits.</summary>
     [ObservableProperty]
     private string _collectionName = string.Empty;
 
+    /// <summary>Gets or sets the current query result bound to the grid.</summary>
     [ObservableProperty]
     private QueryResult? _queryResult;
 
+    /// <summary>Gets or sets the column descriptors derived from the current <see cref="QueryResult"/>.</summary>
     [ObservableProperty]
     private ObservableCollection<ColumnDescriptor> _columns = [];
 
@@ -41,6 +44,11 @@ public partial class ResultGridViewModel(IDatabaseService databaseService, ILogg
         }
     }
 
+    /// <summary>Persists an inline cell edit to the database.</summary>
+    /// <param name="row">The row object (expected to be a <c>BsonDocument</c>).</param>
+    /// <param name="columnName">The name of the field to update.</param>
+    /// <param name="newValue">The new value to persist.</param>
+    /// <param name="cancellationToken">Token used to cancel the operation.</param>
     public async Task UpdateCellValueAsync(object row, string columnName, object newValue, CancellationToken cancellationToken)
     {
         if (row is not BsonDocument document) {

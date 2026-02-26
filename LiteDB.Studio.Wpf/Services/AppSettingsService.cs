@@ -3,20 +3,26 @@ using System.IO;
 
 namespace LiteDB.Studio.Wpf.Services;
 
+/// <summary>
+/// Reads and persists application settings as a JSON file under the user's app-data folder.
+/// Implements <see cref="IAppSettingsService"/>.
+/// </summary>
 public sealed class AppSettingsService : IAppSettingsService
 {
-    private readonly string _settingsFolder;
     private readonly string _settingsFile;
 
-    public ApplicationSettings ApplicationSettings { get; private set; }
+    /// <inheritdoc />
+    public ApplicationSettings ApplicationSettings { get; }
 
+    /// <summary>Initializes a new instance of <see cref="AppSettingsService"/>.</summary>
+    /// <param name="settingsFolder">Override folder for the settings file. Defaults to <c>%APPDATA%\LiteDB.Studio</c>.</param>
     public AppSettingsService(string? settingsFolder = null)
     {
-        _settingsFolder = settingsFolder ?? Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.ApplicationData), "LiteDB.Studio");
-        _settingsFile = Path.Combine(_settingsFolder, "appsettings.json");
+        var settingsFolder1 = settingsFolder ?? Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.ApplicationData), "LiteDB.Studio");
+        _settingsFile = Path.Combine(settingsFolder1, "appsettings.json");
 
-        if (!Directory.Exists(_settingsFolder)) {
-            Directory.CreateDirectory(_settingsFolder);
+        if (!Directory.Exists(settingsFolder1)) {
+            Directory.CreateDirectory(settingsFolder1);
         }
 
         if (!File.Exists(_settingsFile))
@@ -38,6 +44,7 @@ public sealed class AppSettingsService : IAppSettingsService
         }
     }
 
+    /// <inheritdoc />
     public void PersistData()
     {
         var opts = new System.Text.Json.JsonSerializerOptions { WriteIndented = true };
@@ -45,6 +52,7 @@ public sealed class AppSettingsService : IAppSettingsService
         File.WriteAllText(_settingsFile, json);
     }
 
+    /// <inheritdoc />
     public bool IsLastDbExist()
     {
         if (ApplicationSettings.LastConnectionStrings == null) {
@@ -55,11 +63,13 @@ public sealed class AppSettingsService : IAppSettingsService
         return !string.IsNullOrEmpty(ldb) && File.Exists(ldb);
     }
 
+    /// <inheritdoc />
     public bool IsDbExist(string db)
     {
         return !string.IsNullOrEmpty(db) && File.Exists(db);
     }
 
+    /// <inheritdoc />
     public void AddToRecentList(ConnectionString? connectionString)
     {
         if (connectionString == null) {
@@ -81,6 +91,7 @@ public sealed class AppSettingsService : IAppSettingsService
         PersistData();
     }
 
+    /// <inheritdoc />
     public void ValidateRecentList(bool removeOverflowedItems = true)
     {
         var toRemove = ApplicationSettings.RecentConnectionStrings.Where(connectionString => !IsDbExist(connectionString.Filename)).ToList();
@@ -99,6 +110,7 @@ public sealed class AppSettingsService : IAppSettingsService
         PersistData();
     }
 
+    /// <inheritdoc />
     public void ClearRecentList()
     {
         ApplicationSettings.RecentConnectionStrings.Clear();

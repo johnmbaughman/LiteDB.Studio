@@ -17,7 +17,7 @@ public class LiteDbStudioApplication : Application {
     /// Gets the name of the application as set during startup.
     /// </summary>
     /// <remarks>
-    /// This property is assigned in <see cref="StartApplication"/> and provides the identifier for the running application instance.
+    /// This property is assigned in <see cref="StartApplicationAsync"/> and provides the identifier for the running application instance.
     /// </remarks>
     /// <value>The name of the application.</value>
     public static string ApplicationName { get; private set; } = string.Empty;

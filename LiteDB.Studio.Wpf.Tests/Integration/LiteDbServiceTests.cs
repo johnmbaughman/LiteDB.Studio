@@ -1,5 +1,6 @@
 using System;
 using System.Collections.Generic;
+using System.IO;
 using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
@@ -10,10 +11,12 @@ using Xunit;
 
 namespace LiteDB.Studio.Wpf.Tests.Integration;
 
+/// <summary>Integration tests for <see cref="LiteDbService"/> using an in-memory LiteDB database.</summary>
 public class LiteDbServiceTests : IDisposable
 {
     private readonly LiteDbService _service = new();
 
+    /// <summary>Disposes the shared <see cref="LiteDbService"/> after each test.</summary>
     public void Dispose()
     {
         _service.Dispose();
@@ -167,5 +170,110 @@ public class LiteDbServiceTests : IDisposable
         await _service.RollbackTransactionAsync(cts.Token);
 
         Assert.False(_service.TransactionActive);
+    }
+
+    // ── T125: Schema discovery with nested documents and arrays ──────────────────
+
+    [Fact]
+    public async Task GetCollectionSchemaAsync_WithNestedDocument_IncludesFieldAsDocumentType()
+    {
+        // Arrange
+        var cts = new CancellationTokenSource();
+        await _service.ConnectAsync(":memory:", cts.Token);
+        await _service.ExecuteAsync(
+            "INSERT INTO nested_test VALUES { name: 'Alice', address: { street: '123 Main', city: 'Springfield' } }",
+            cts.Token);
+
+        // Act
+        IEnumerable<ColumnInfo> schema = await _service.GetCollectionSchemaAsync("nested_test", cts.Token);
+        var columns = schema.ToList();
+
+        // Assert
+        Assert.NotEmpty(columns);
+        Assert.Contains(columns, c => c is { Name: "name", BsonType: "String" });
+        Assert.Contains(columns, c => c is { Name: "address", BsonType: "Document" });
+    }
+
+    [Fact]
+    public async Task GetCollectionSchemaAsync_WithArrayField_IncludesFieldAsArrayType()
+    {
+        // Arrange
+        var cts = new CancellationTokenSource();
+        await _service.ConnectAsync(":memory:", cts.Token);
+        await _service.ExecuteAsync(
+            "INSERT INTO array_test VALUES { title: 'Example', tags: ['one', 'two', 'three'] }",
+            cts.Token);
+
+        // Act
+        IEnumerable<ColumnInfo> schema = await _service.GetCollectionSchemaAsync("array_test", cts.Token);
+        var columns = schema.ToList();
+
+        // Assert
+        Assert.Contains(columns, c => c is { Name: "title", BsonType: "String" });
+        Assert.Contains(columns, c => c is { Name: "tags", BsonType: "Array" });
+    }
+
+    [Fact]
+    public async Task GetCollectionSchemaAsync_WithDocumentsHavingDifferentFields_ReturnsCombinedSchema()
+    {
+        // Arrange — two documents with disjoint field sets
+        var cts = new CancellationTokenSource();
+        await _service.ConnectAsync(":memory:", cts.Token);
+        await _service.ExecuteAsync("INSERT INTO mixed_test VALUES { fieldA: 'value1' }", cts.Token);
+        await _service.ExecuteAsync("INSERT INTO mixed_test VALUES { fieldB: 42 }", cts.Token);
+
+        // Act
+        IEnumerable<ColumnInfo> schema = await _service.GetCollectionSchemaAsync("mixed_test", cts.Token);
+        var columns = schema.ToList();
+
+        // Assert — schema is the union of all observed fields across sampled documents
+        Assert.Contains(columns, c => c.Name == "fieldA");
+        Assert.Contains(columns, c => c.Name == "fieldB");
+    }
+
+    // ── T126: Edge cases — locked file, already-connected, not-connected ─────────
+
+    [Fact]
+    public async Task ConnectAsync_WhenAlreadyConnected_ThrowsInvalidOperationException()
+    {
+        // Arrange
+        var cts = new CancellationTokenSource();
+        await _service.ConnectAsync(":memory:", cts.Token);
+        Assert.True(_service.IsConnected);
+
+        // Act & Assert
+        await Assert.ThrowsAsync<InvalidOperationException>(
+            () => _service.ConnectAsync(":memory:", cts.Token));
+    }
+
+    [Fact]
+    public async Task ConnectAsync_WithLockedFile_ThrowsException()
+    {
+        // Arrange — open a direct-mode (exclusive) connection to a temp file
+        var tempFile = Path.Combine(Path.GetTempPath(), $"litedb_lock_{Guid.NewGuid():N}.litedb");
+        var service1 = new LiteDbService();
+        try
+        {
+            await service1.ConnectAsync(tempFile, CancellationToken.None);
+            Assert.True(service1.IsConnected);
+
+            // Act — second instance on the same file should fail (direct/exclusive mode)
+            var service2 = new LiteDbService();
+            await Assert.ThrowsAnyAsync<Exception>(
+                () => service2.ConnectAsync(tempFile, CancellationToken.None));
+        }
+        finally
+        {
+            await service1.DisposeAsync();
+            if (File.Exists(tempFile)) { File.Delete(tempFile); }
+        }
+    }
+
+    [Fact]
+    public async Task ExecuteAsync_WhenNotConnected_ThrowsInvalidOperationException()
+    {
+        // _service starts disconnected — no ConnectAsync called
+        await Assert.ThrowsAsync<InvalidOperationException>(
+            () => _service.ExecuteAsync("SELECT * FROM test", CancellationToken.None));
     }
 }

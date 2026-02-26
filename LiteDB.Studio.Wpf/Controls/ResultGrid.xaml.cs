@@ -213,13 +213,11 @@ public partial class ResultGrid
             }
 
             var row = e.Row.Item;
-            var column = e.Column as DataGridTextColumn;
-            if (column == null) {
+            if (e.Column is not DataGridTextColumn column) {
                 return;
             }
 
-            var textBox = e.EditingElement as TextBox;
-            if (textBox == null) {
+            if (e.EditingElement is not TextBox textBox) {
                 return;
             }
 
@@ -290,8 +288,7 @@ public partial class ResultGrid
         // update header to show green arrow
         UpdateColumnHeaderWithSortIndicator(column, direction);
 
-        var view = CollectionViewSource.GetDefaultView(ResultsDataGrid.ItemsSource) as ListCollectionView;
-        if (view == null) {
+        if (CollectionViewSource.GetDefaultView(ResultsDataGrid.ItemsSource) is not ListCollectionView view) {
             return;
         }
 

@@ -3,6 +3,7 @@ using Xunit;
 
 namespace LiteDB.Studio.Wpf.Tests.Services;
 
+/// <summary>Unit tests for <see cref="SqlCompletionProvider"/> factory helpers and constructor.</summary>
 public class SqlCompletionProviderTests
 {
     [Fact]

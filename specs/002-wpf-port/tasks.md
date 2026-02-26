@@ -278,13 +278,13 @@ This document breaks down the WPF port into prioritized, executable tasks organi
 
 ### Tasks
 
-- [ ] T122 [US7] Add unit test coverage for MainViewModel commands not yet tested: NewTabCommand, CloseTabCommand, RefreshTreeCommand, InsertSnippetCommand in LiteDB.Studio.Wpf.Tests/ViewModels/MainViewModelTests.cs
-- [ ] T123 [P] [US7] Add unit test coverage for TabViewModel edge cases: empty EditorText, null LastResult, cancellation in LiteDB.Studio.Wpf.Tests/ViewModels/TabViewModelTests.cs
-- [ ] T124 [P] [US7] Add unit test coverage for DatabaseTreeViewModel: Clear, LoadRootNodesAsync with empty collections in LiteDB.Studio.Wpf.Tests/ViewModels/DatabaseTreeViewModelTests.cs
-- [ ] T125 [P] [US7] Add integration test for schema discovery: GetCollectionSchemaAsync with nested documents, arrays in LiteDB.Studio.Wpf.Tests/Integration/LiteDbServiceTests.cs
-- [ ] T126 [P] [US7] Add integration test for edge cases: locked file, malformed connection string, schema mismatch in LiteDB.Studio.Wpf.Tests/Integration/LiteDbServiceTests.cs
-- [ ] T127 [US7] Add performance test: load 10k rows, measure grid render time, verify <3s in LiteDB.Studio.Wpf.Tests/Performance/GridPerformanceTests.cs
-- [ ] T128 [P] [US7] Add memory leak test: open/close 100 tabs in loop, verify memory returns to baseline in LiteDB.Studio.Wpf.Tests/Performance/MemoryLeakTests.cs
+- [X] T122 [US7] Add unit test coverage for MainViewModel commands not yet tested: NewTabCommand, CloseTabCommand, RefreshTreeCommand, InsertSnippetCommand in LiteDB.Studio.Wpf.Tests/ViewModels/MainViewModelTests.cs
+- [X] T123 [P] [US7] Add unit test coverage for TabViewModel edge cases: empty EditorText, null LastResult, cancellation in LiteDB.Studio.Wpf.Tests/ViewModels/TabViewModelTests.cs
+- [X] T124 [P] [US7] Add unit test coverage for DatabaseTreeViewModel: Clear, LoadRootNodesAsync with empty collections in LiteDB.Studio.Wpf.Tests/ViewModels/DatabaseTreeViewModelTests.cs
+- [X] T125 [P] [US7] Add integration test for schema discovery: GetCollectionSchemaAsync with nested documents, arrays in LiteDB.Studio.Wpf.Tests/Integration/LiteDbServiceTests.cs
+- [X] T126 [P] [US7] Add integration test for edge cases: locked file, malformed connection string, schema mismatch in LiteDB.Studio.Wpf.Tests/Integration/LiteDbServiceTests.cs
+- [X] T127 [US7] Add performance test: load 10k rows, measure grid render time, verify <3s in LiteDB.Studio.Wpf.Tests/Performance/GridPerformanceTests.cs
+- [X] T128 [P] [US7] Add memory leak test: open/close 100 tabs in loop, verify memory returns to baseline in LiteDB.Studio.Wpf.Tests/Performance/MemoryLeakTests.cs
 - [ ] T129 [US7] Configure CI pipeline to run dotnet test for LiteDB.Studio.Wpf.Tests project
 - [ ] T130 [US7] Update CI pipeline to fail build on test failures
 - [ ] T131 [US7] Create PR template in .github/PULL_REQUEST_TEMPLATE.md with sections: Problem, Approach, Risks, Tests, Rollout/Rollback

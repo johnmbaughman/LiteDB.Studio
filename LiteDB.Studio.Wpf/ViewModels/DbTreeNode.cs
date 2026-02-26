@@ -16,20 +16,24 @@ public partial class DbTreeNode(
     private readonly IDialogService _dialogService = dialogService ?? throw new ArgumentNullException(nameof(dialogService));
     private readonly IFileDialogService _fileDialogService = fileDialogService ?? throw new ArgumentNullException(nameof(fileDialogService));
     private readonly IFileService _fileService = fileService ?? throw new ArgumentNullException(nameof(fileService));
-    private readonly Action<string>? _insertSnippetAction = insertSnippetAction;
 
+    /// <summary>Gets or sets the display text for this node.</summary>
     public string Header { get; set; } = string.Empty;
 
+    /// <summary>Gets or sets the semantic tag (e.g. <c>"collection"</c>, <c>"system"</c>, <c>"field"</c>).</summary>
     public string? Tag { get; set; }
 
-    // pack uri to resource image (e.g. pack://application:,,,/Resources/Icons/table.png)
+    /// <summary>Gets or sets a pack URI for the node icon (e.g. <c>pack://application:,,,/Resources/Icons/table.png</c>).</summary>
     public string? IconUri { get; set; }
 
+    /// <summary>Gets the child nodes of this tree node.</summary>
     public ObservableCollection<DbTreeNode> Children { get; } = [];
 
+    /// <summary>Gets or sets a value indicating whether this node's children have been loaded from the database.</summary>
     [ObservableProperty]
     private bool _isLoaded;
 
+    /// <summary>Gets or sets a value indicating whether this node is expanded in the tree.</summary>
     [ObservableProperty]
     private bool _isExpanded;
 
@@ -120,6 +124,6 @@ public partial class DbTreeNode(
             // For field, perhaps insert the field name
             Header;
 
-        _insertSnippetAction?.Invoke(snippet);
+        insertSnippetAction?.Invoke(snippet);
     }
 }

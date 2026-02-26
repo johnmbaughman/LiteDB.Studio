@@ -5,12 +5,17 @@ using System.Windows.Media.Imaging;
 
 namespace LiteDB.Studio.Wpf.Util;
 
+/// <summary>
+/// An <see cref="Image"/> that automatically switches to a gray (desaturated) version of its source
+/// when the control is disabled (<see cref="UIElement.IsEnabled"/> = <c>false</c>).
+/// </summary>
 public class GrayableImage : Image
 {
     private ImageSource? _originalSource;
     private ImageSource? _graySource;
     private bool _isUpdating;
 
+    /// <summary>Initializes a new instance of <see cref="GrayableImage"/> and subscribes to state-change events.</summary>
     public GrayableImage()
     {
         IsEnabledChanged += GrayableImage_IsEnabledChanged;

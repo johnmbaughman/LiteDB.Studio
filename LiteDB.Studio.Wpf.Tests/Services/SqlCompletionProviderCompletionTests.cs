@@ -8,6 +8,7 @@ using Xunit;
 
 namespace LiteDB.Studio.Wpf.Tests.Services;
 
+/// <summary>Integration-style tests that combine keyword and collection completions.</summary>
 public class SqlCompletionProviderCompletionTests
 {
     [Fact]

@@ -5,6 +5,7 @@ using System.Windows.Input;
 
 namespace LiteDB.Studio.Wpf.Behaviors;
 
+/// <summary>Attached behaviors for <see cref="TreeView"/> controls.</summary>
 public static class TreeViewBehaviors
 {
     private sealed class HandlerState
@@ -14,17 +15,26 @@ public static class TreeViewBehaviors
 
     private static readonly ConditionalWeakTable<TreeView, HandlerState> _handlers = new();
 
+    /// <summary>
+    /// Attached property that binds a command to the <see cref="TreeView.MouseDoubleClick"/> event.
+    /// The selected item is passed as the command parameter.
+    /// </summary>
     public static readonly DependencyProperty ItemDoubleClickCommandProperty = DependencyProperty.RegisterAttached(
         "ItemDoubleClickCommand",
         typeof(ICommand),
         typeof(TreeViewBehaviors),
         new PropertyMetadata(null, OnItemDoubleClickCommandChanged));
 
+    /// <summary>Gets the <see cref="ItemDoubleClickCommandProperty"/> value from <paramref name="obj"/>.</summary>
+    /// <param name="obj">Target dependency object.</param>
     public static ICommand? GetItemDoubleClickCommand(DependencyObject obj)
     {
         return (ICommand?)obj.GetValue(ItemDoubleClickCommandProperty);
     }
 
+    /// <summary>Sets the <see cref="ItemDoubleClickCommandProperty"/> value on <paramref name="obj"/>.</summary>
+    /// <param name="obj">Target dependency object.</param>
+    /// <param name="value">Command to execute on double-click, or <c>null</c> to unbind.</param>
     public static void SetItemDoubleClickCommand(DependencyObject obj, ICommand? value)
     {
         obj.SetValue(ItemDoubleClickCommandProperty, value);
@@ -56,7 +66,7 @@ public static class TreeViewBehaviors
 
         state.Handler = (_, _) =>
         {
-            if (GetItemDoubleClickCommand(treeView) is not ICommand command)
+            if (GetItemDoubleClickCommand(treeView) is not { } command)
             {
                 return;
             }

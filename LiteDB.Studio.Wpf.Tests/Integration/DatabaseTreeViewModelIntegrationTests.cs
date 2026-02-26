@@ -3,15 +3,16 @@ using System.Threading;
 using System.Threading.Tasks;
 using LiteDB.Studio.Wpf.Services;
 using LiteDB.Studio.Wpf.ViewModels;
-using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Logging.Abstractions;
 using NSubstitute;
 using Xunit;
 
 namespace LiteDB.Studio.Wpf.Tests.Integration;
 
+/// <summary>Integration tests for <see cref="DatabaseTreeViewModel"/> using a real in-memory LiteDB database.</summary>
 public class DatabaseTreeViewModelIntegrationTests
 {
+    /// <summary>Initialises the shared application host before each test.</summary>
     public DatabaseTreeViewModelIntegrationTests()
     {
         TestAppHostInitializer.EnsureInitialized();

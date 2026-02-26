@@ -7,10 +7,12 @@ using Xunit;
 
 namespace LiteDB.Studio.Wpf.Tests.Integration;
 
+/// <summary>Integration tests verifying system-collection discovery in <see cref="LiteDbService"/>.</summary>
 public class LiteDbServiceSystemCollectionsTests : IDisposable
 {
     private readonly LiteDbService _service = new();
 
+    /// <summary>Disposes the shared <see cref="LiteDbService"/> after each test.</summary>
     public void Dispose()
     {
         _service.Dispose();

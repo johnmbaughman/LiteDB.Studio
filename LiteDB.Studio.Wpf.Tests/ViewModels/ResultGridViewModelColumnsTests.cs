@@ -1,25 +1,24 @@
-using System.Linq;
 using LiteDB.Studio.Wpf.Services;
 using LiteDB.Studio.Wpf.ViewModels;
-using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Logging.Abstractions;
 using Xunit;
 
 namespace LiteDB.Studio.Wpf.Tests.ViewModels;
 
+/// <summary>Tests that verify <see cref="ResultGridViewModel"/> column descriptor population.</summary>
 public class ResultGridViewModelColumnsTests
 {
     [Fact]
     public void SettingQueryResult_PopulatesColumnDescriptors()
     {
         // Arrange
-        IDatabaseService mockDb = NSubstitute.Substitute.For<LiteDB.Studio.Wpf.Services.IDatabaseService>();
+        IDatabaseService mockDb = NSubstitute.Substitute.For<IDatabaseService>();
         var vm = new ResultGridViewModel(mockDb, NullLogger<ResultGridViewModel>.Instance);
 
         var result = new QueryResult
         {
-            Columns = new[] { new ColumnInfo { Name = "name" }, new ColumnInfo { Name = "value" } },
-            Rows = new object[] { }
+            Columns = [new ColumnInfo { Name = "name" }, new ColumnInfo { Name = "value" }],
+            Rows = []
         };
 
         // Act

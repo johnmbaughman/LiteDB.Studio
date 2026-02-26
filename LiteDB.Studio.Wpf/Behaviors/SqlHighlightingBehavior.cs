@@ -9,22 +9,35 @@ using ICSharpCode.AvalonEdit.Highlighting.Xshd;
 
 namespace LiteDB.Studio.Wpf.Behaviors;
 
+/// <summary>
+/// Attached behavior that registers and applies the bundled SQL syntax-highlighting definition
+/// to AvalonEdit <see cref="TextEditor"/> controls.
+/// </summary>
 public static class SqlHighlightingBehavior
 {
     private static readonly Lock _sync = new();
     private static bool _registered;
 
+    /// <summary>
+    /// Attached property. Set to <c>true</c> on a <see cref="TextEditor"/> or parent <see cref="FrameworkElement"/>
+    /// to enable SQL syntax highlighting for all descendant editors.
+    /// </summary>
     public static readonly DependencyProperty EnableSqlHighlightingProperty = DependencyProperty.RegisterAttached(
         "EnableSqlHighlighting",
         typeof(bool),
         typeof(SqlHighlightingBehavior),
         new PropertyMetadata(false, OnEnableSqlHighlightingChanged));
 
+    /// <summary>Gets the <see cref="EnableSqlHighlightingProperty"/> value from <paramref name="obj"/>.</summary>
+    /// <param name="obj">Target dependency object.</param>
     public static bool GetEnableSqlHighlighting(DependencyObject obj)
     {
         return (bool)obj.GetValue(EnableSqlHighlightingProperty);
     }
 
+    /// <summary>Sets the <see cref="EnableSqlHighlightingProperty"/> value on <paramref name="obj"/>.</summary>
+    /// <param name="obj">Target dependency object.</param>
+    /// <param name="value">Value to set.</param>
     public static void SetEnableSqlHighlighting(DependencyObject obj, bool value)
     {
         obj.SetValue(EnableSqlHighlightingProperty, value);

@@ -2,15 +2,16 @@ using System.Threading;
 using System.Threading.Tasks;
 using LiteDB.Studio.Wpf.Services;
 using LiteDB.Studio.Wpf.ViewModels;
-using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Logging.Abstractions;
 using NSubstitute;
 using Xunit;
 
 namespace LiteDB.Studio.Wpf.Tests.ViewModels;
 
+/// <summary>Unit tests for <see cref="DatabaseTreeViewModel"/>.</summary>
 public class DatabaseTreeViewModelTests
 {
+    /// <summary>Initialises the shared application host before each test.</summary>
     public DatabaseTreeViewModelTests()
     {
         TestAppHostInitializer.EnsureInitialized();
@@ -105,5 +106,67 @@ public class DatabaseTreeViewModelTests
         Assert.Equal(1, viewModel.CollectionsCount);
         Assert.Equal(2, viewModel.SystemCount);
         Assert.Equal("Collections: 1 / System: 2", viewModel.StatusText);
+    }
+
+    [Fact]
+    public async Task LoadRootNodesAsync_WithEmptyCollections_BuildsRootWithEmptySystemFolder()
+    {
+        // Arrange
+        IDatabaseService? mockService = Substitute.For<IDatabaseService>();
+        mockService.GetCollectionNamesAsync(CancellationToken.None).ReturnsForAnyArgs([]);
+        mockService.GetSystemCollectionNamesAsync(CancellationToken.None).ReturnsForAnyArgs([]);
+
+        IDialogService dialogService = Substitute.For<IDialogService>();
+        IFileDialogService fileDialogService = Substitute.For<IFileDialogService>();
+        IFileService fileService = Substitute.For<IFileService>();
+
+        var viewModel = new DatabaseTreeViewModel(mockService, dialogService, fileDialogService, fileService,
+            NullLogger<DatabaseTreeViewModel>.Instance);
+
+        // Act
+        await viewModel.LoadRootNodesAsync();
+
+        // Assert
+        Assert.Single(viewModel.RootNodes);
+        DbTreeNode root = viewModel.RootNodes[0];
+        Assert.Single(root.Children); // system folder only — no user collections
+        DbTreeNode systemNode = root.Children[0];
+        Assert.Equal("System", systemNode.Header);
+        Assert.Equal("systemfolder", systemNode.Tag);
+        Assert.Empty(systemNode.Children);
+        Assert.Equal(0, viewModel.CollectionsCount);
+        Assert.Equal(0, viewModel.SystemCount);
+        Assert.Equal("Collections: 0 / System: 0", viewModel.StatusText);
+    }
+
+    [Fact]
+    public async Task LoadRootNodesAsync_ReplacesExistingNodes_OnReload()
+    {
+        // Arrange — first load with two collections
+        IDatabaseService? mockService = Substitute.For<IDatabaseService>();
+        mockService.GetCollectionNamesAsync(CancellationToken.None).ReturnsForAnyArgs(["col1", "col2"]);
+        mockService.GetSystemCollectionNamesAsync(CancellationToken.None).ReturnsForAnyArgs([]);
+
+        IDialogService dialogService = Substitute.For<IDialogService>();
+        IFileDialogService fileDialogService = Substitute.For<IFileDialogService>();
+        IFileService fileService = Substitute.For<IFileService>();
+
+        var viewModel = new DatabaseTreeViewModel(mockService, dialogService, fileDialogService, fileService,
+            NullLogger<DatabaseTreeViewModel>.Instance);
+
+        await viewModel.LoadRootNodesAsync();
+        Assert.Equal(3, viewModel.RootNodes[0].Children.Count); // system folder + col1 + col2
+        Assert.Equal(2, viewModel.CollectionsCount);
+
+        // Act — reload with empty collections
+        mockService.GetCollectionNamesAsync(CancellationToken.None).ReturnsForAnyArgs([]);
+        mockService.GetSystemCollectionNamesAsync(CancellationToken.None).ReturnsForAnyArgs([]);
+        await viewModel.LoadRootNodesAsync();
+
+        // Assert — previous nodes fully replaced
+        Assert.Single(viewModel.RootNodes);
+        Assert.Single(viewModel.RootNodes[0].Children); // system folder only
+        Assert.Equal(0, viewModel.CollectionsCount);
+        Assert.Equal(0, viewModel.SystemCount);
     }
 }

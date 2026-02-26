@@ -7,6 +7,7 @@ using Xunit;
 
 namespace LiteDB.Studio.Wpf.Tests.Services;
 
+/// <summary>Tests for <see cref="SqlCompletionProvider.GetKeywordCompletionsFromFileAsync"/> with custom files.</summary>
 public class SqlKeywordFileTests
 {
     [Fact]

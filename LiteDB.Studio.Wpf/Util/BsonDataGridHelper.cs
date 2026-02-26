@@ -5,19 +5,29 @@ using Serilog;
 
 namespace LiteDB.Studio.Wpf.Util;
 
+/// <summary>
+/// Attached behavior that wires up a <see cref="DataGrid"/> to render <see cref="BsonValue"/> cells correctly,
+/// including row-number headers and automatic column converter attachment.
+/// </summary>
 public static class BsonDataGridHelper
 {
+    /// <summary>Attached property that enables BsonValue-aware column generation for a <see cref="DataGrid"/>.</summary>
     public static readonly DependencyProperty EnableProperty = DependencyProperty.RegisterAttached(
         "Enable",
         typeof(bool),
         typeof(BsonDataGridHelper),
         new PropertyMetadata(false, OnEnableChanged));
 
+    /// <summary>Sets the <see cref="EnableProperty"/> attached property value on <paramref name="element"/>.</summary>
+    /// <param name="element">Target dependency object.</param>
+    /// <param name="value">Value to set.</param>
     public static void SetEnable(DependencyObject element, bool value)
     {
         element.SetValue(EnableProperty, value);
     }
 
+    /// <summary>Gets the <see cref="EnableProperty"/> attached property value from <paramref name="element"/>.</summary>
+    /// <param name="element">Target dependency object.</param>
     public static bool GetEnable(DependencyObject element)
     {
         return (bool)element.GetValue(EnableProperty);

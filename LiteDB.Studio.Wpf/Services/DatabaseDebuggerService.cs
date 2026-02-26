@@ -1,4 +1,3 @@
-using LiteDB;
 using System.IO;
 using System.Net;
 using System.Text;
@@ -53,7 +52,7 @@ internal sealed class DatabaseDebuggerService : IDisposable
         {
             try
             {
-                var context = _listener.GetContext();
+                HttpListenerContext context = _listener.GetContext();
                 _ = Task.Run(() => HandleRequest(context));
             }
             catch
@@ -65,7 +64,7 @@ internal sealed class DatabaseDebuggerService : IDisposable
 
     private void HandleRequest(HttpListenerContext context)
     {
-        var body = string.Empty;
+        string body;
         var status = 200;
         var url = context.Request.RawUrl ?? "/";
 
@@ -73,19 +72,19 @@ internal sealed class DatabaseDebuggerService : IDisposable
         {
             if (Regex.IsMatch(url, @"^\/(\d+)?$"))
             {
-                var pageID = url == "/" ? 0 : int.Parse(url.TrimStart('/'));
-                var page = context.Request.HttpMethod == "GET"
-                    ? _db!.GetCollection($"$dump({pageID})").Query().FirstOrDefault()
+                var pageId = url == "/" ? 0 : int.Parse(url.TrimStart('/'));
+                BsonDocument? page = context.Request.HttpMethod == "GET"
+                    ? _db!.GetCollection($"$dump({pageId})").Query().FirstOrDefault()
                     : GetPost(context.Request.InputStream);
 
                 body = page == null
-                    ? $"Page {pageID} not found in database"
+                    ? $"Page {pageId} not found in database"
                     : new HtmlPageDump(page).Render();
             }
             else if (Regex.IsMatch(url, @"^\/list\/(\d+)$"))
             {
-                var pageID = int.Parse(url.Substring(6));
-                body = new HtmlPageList(_db!.GetCollection($"$page_list({pageID})").Query().Limit(1000).ToEnumerable()).Render();
+                var pageId = int.Parse(url[6..]);
+                body = new HtmlPageList(_db!.GetCollection($"$page_list({pageId})").Query().Limit(1000).ToEnumerable()).Render();
             }
             else
             {
@@ -130,10 +129,10 @@ internal sealed class DatabaseDebuggerService : IDisposable
         private const int BlocksPerLine = 32;
         private const int PageHeaderSize = 32;
 
-        private enum PageType { Empty = 0, Header = 1, Collection = 2, Index = 3, Data = 4 }
+        private enum PageType { Header = 1, Collection = 2, Data = 4 }
 
         private readonly BsonDocument _page;
-        private readonly uint _pageID;
+        private readonly uint _pageId;
         private readonly PageType _pageType;
         private readonly byte[] _buffer;
         private readonly StringBuilder _writer = new();
@@ -144,7 +143,7 @@ internal sealed class DatabaseDebuggerService : IDisposable
         {
             _page = page;
             _buffer = page["buffer"].AsBinary;
-            _pageID = BitConverter.ToUInt32(_buffer, 0);
+            _pageId = BitConverter.ToUInt32(_buffer, 0);
             _pageType = (PageType)_buffer[4];
             page.Remove("buffer");
 
@@ -165,17 +164,27 @@ internal sealed class DatabaseDebuggerService : IDisposable
             SpanPageHeader();
             SpanSegments();
 
-            if (_pageType == PageType.Header) { SpanHeaderPage(); }
-            else if (_pageType == PageType.Collection) { SpanCollectionPage(); }
+            switch (_pageType)
+            {
+                case PageType.Header:
+                    SpanHeaderPage();
+                    break;
+                case PageType.Collection:
+                    SpanCollectionPage();
+                    break;
+                case PageType.Data:
+                default:
+                    throw new ArgumentOutOfRangeException();
+            }
         }
 
         private void SpanPageHeader()
         {
             var h = 0;
-            h += SpanPageID(h, "PageID", false, false);
+            h += SpanPageId(h, "PageID", false, false);
             h += SpanItem<byte>(h, 0, null, "PageType", null);
-            h += SpanPageID(h, "PrevPageID", false, false);
-            h += SpanPageID(h, "NextPageID", false, true);
+            h += SpanPageId(h, "PrevPageID", false, false);
+            h += SpanPageId(h, "NextPageID", false, true);
             h += SpanItem<byte>(h, 0, null, "Slot", null);
             h += SpanItem(h, 3, null, "TransactionID", BitConverter.ToUInt32);
             h += SpanItem<byte>(h, 0, null, "IsConf", null);
@@ -185,7 +194,7 @@ internal sealed class DatabaseDebuggerService : IDisposable
             h += SpanItem(h, 1, null, "FragmentedBytes", BitConverter.ToUInt16);
             h += SpanItem(h, 1, null, "NextFreePo", BitConverter.ToUInt16);
             h += SpanItem<byte>(h, 0, null, "HghIdx", null);
-            h += SpanItem<byte>(h, 0, null, "Reserv", null);
+            SpanItem<byte>(h, 0, null, "Reserv", null);
         }
 
         private void SpanSegments()
@@ -213,42 +222,41 @@ internal sealed class DatabaseDebuggerService : IDisposable
                 _items[posAddr].Text = position.ToString();
                 _items[posAddr].Href = "#" + i;
 
-                if (position != 0)
+                if (position == 0) { continue; }
+
+                _items[posAddr].Color = _items[lenAddr].Color = colorIndex++ % _colors.Length;
+                _items[position].Id = i.ToString();
+
+                if (_pageType == PageType.Data)
                 {
-                    _items[posAddr].Color = _items[lenAddr].Color = colorIndex++ % _colors.Length;
-                    _items[position].Id = i.ToString();
+                    SpanItem<byte>(position, 0, null, "Extend", null);
+                    SpanPageId(position + 1, "NextBlockID", true, false);
+                }
+                else
+                {
+                    SpanItem<byte>(position, 0, null, "Slot", null);
+                    SpanItem<byte>(position + 1, 0, null, "Level", null);
+                    SpanPageId(position + 2, "DataBlock", true, false);
+                    SpanPageId(position + 7, "NextNode", true, false);
 
-                    if (_pageType == PageType.Data)
+                    for (var j = 0; j < _buffer[position + 1]; j++)
                     {
-                        SpanItem<byte>(position, 0, null, "Extend", null);
-                        SpanPageID(position + 1, "NextBlockID", true, false);
-                    }
-                    else
-                    {
-                        SpanItem<byte>(position, 0, null, "Slot", null);
-                        SpanItem<byte>(position + 1, 0, null, "Level", null);
-                        SpanPageID(position + 2, "DataBlock", true, false);
-                        SpanPageID(position + 7, "NextNode", true, false);
-
-                        for (var j = 0; j < _buffer[position + 1]; j++)
-                        {
-                            SpanPageID(position + 12 + (j * 5 * 2), "Prev #" + j, true, false);
-                            SpanPageID(position + 12 + (j * 5 * 2) + 5, "Next #" + j, true, false);
-                        }
-
-                        var p = position + 12 + (_buffer[position + 1] * 5 * 2);
-                        SpanItem<byte>(p, 0, null, "Type", null);
-
-                        if (_buffer[p] == 6 || _buffer[p] == 9)
-                        {
-                            SpanItem<byte>(++p, 0, null, "Len", null);
-                        }
+                        SpanPageId(position + 12 + (j * 5 * 2), "Prev #" + j, true, false);
+                        SpanPageId(position + 12 + (j * 5 * 2) + 5, "Next #" + j, true, false);
                     }
 
-                    for (var j = position; j < position + length; j++)
+                    var p = position + 12 + (_buffer[position + 1] * 5 * 2);
+                    SpanItem<byte>(p, 0, null, "Type", null);
+
+                    if (_buffer[p] == 6 || _buffer[p] == 9)
                     {
-                        _items[j].Color = colorIndex - 1;
+                        SpanItem<byte>(++p, 0, null, "Len", null);
                     }
+                }
+
+                for (var j = position; j < position + length; j++)
+                {
+                    _items[j].Color = colorIndex - 1;
                 }
             }
 
@@ -275,16 +283,16 @@ internal sealed class DatabaseDebuggerService : IDisposable
             var h = PageHeaderSize;
             var color = 0;
 
-            h += SpanItem(h, 26, null, "HeaderInfo", (byte[] b, int i) => Encoding.UTF8.GetString(b, i, 27));
+            h += SpanItem(h, 26, null, "HeaderInfo", (b, i) => Encoding.UTF8.GetString(b, i, 27));
             h += SpanItem<byte>(h, 0, null, "FileVersion", null);
-            h += SpanPageID(h, "FreeEmptyPageList", false, true);
-            h += SpanPageID(h, "LastPageID", false, false);
-            h += SpanItem(h, 7, null, "CreationTime", (byte[] b, int i) => new DateTime(BitConverter.ToInt64(b, i)).ToString("o"));
+            h += SpanPageId(h, "FreeEmptyPageList", false, true);
+            h += SpanPageId(h, "LastPageID", false, false);
+            h += SpanItem(h, 7, null, "CreationTime", (b, i) => new DateTime(BitConverter.ToInt64(b, i)).ToString("o"));
             h += SpanItem(h, 3, null, "UserVersion", BitConverter.ToInt32);
             h += SpanItem(h, 3, null, "LCID", BitConverter.ToInt32);
-            h += SpanItem(h, 3, null, "SortOptions", BitConverter.ToInt32);
+            SpanItem(h, 3, null, "SortOptions", BitConverter.ToInt32);
 
-            var collectionPosition = 192;
+            const int collectionPosition = 192;
             SpanItem(collectionPosition, 3, null, "Length", BitConverter.ToInt32);
 
             var p = collectionPosition + 4;
@@ -294,7 +302,7 @@ internal sealed class DatabaseDebuggerService : IDisposable
                 var initial = p;
                 p++;
                 p += SpanCString(p, "Name");
-                p += SpanPageID(p, "PageID", false, false);
+                p += SpanPageId(p, "PageID", false, false);
 
                 for (var k = initial; k < p; k++)
                 {
@@ -311,7 +319,7 @@ internal sealed class DatabaseDebuggerService : IDisposable
 
             for (var i = 0; i < 5; i++)
             {
-                SpanPageID(PageHeaderSize + (i * 4), "DataPageList #" + i, false, true);
+                SpanPageId(PageHeaderSize + (i * 4), "DataPageList #" + i, false, true);
             }
 
             var h = 96;
@@ -326,10 +334,10 @@ internal sealed class DatabaseDebuggerService : IDisposable
                 h += SpanCString(h, "Name");
                 h += SpanCString(h, "Expr");
                 h += SpanItem<byte>(h, 0, null, "Unique", null);
-                h += SpanPageID(h, "Head", true, false);
-                h += SpanPageID(h, "Tail", true, false);
+                h += SpanPageId(h, "Head", true, false);
+                h += SpanPageId(h, "Tail", true, false);
                 h += SpanItem<byte>(h, 0, null, "MaxLevel", null);
-                h += SpanPageID(h, "IndexPageList", false, true);
+                h += SpanPageId(h, "IndexPageList", false, true);
 
                 for (var k = initial; k < h; k++)
                 {
@@ -349,15 +357,15 @@ internal sealed class DatabaseDebuggerService : IDisposable
             return span + 1;
         }
 
-        private int SpanPageID(int index, string caption, bool pageAddress, bool pageList)
+        private int SpanPageId(int index, string caption, bool pageAddress, bool pageList)
         {
-            var pageID = BitConverter.ToUInt32(_buffer, index);
+            var pageId = BitConverter.ToUInt32(_buffer, index);
             _items[index].Span = 3;
             _items[index].Caption = caption;
-            _items[index].Text = pageID == uint.MaxValue ? "-" : pageID.ToString();
-            _items[index].Href = pageID == uint.MaxValue || index == 0
+            _items[index].Text = pageId == uint.MaxValue ? "-" : pageId.ToString();
+            _items[index].Href = pageId == uint.MaxValue || index == 0
                 ? null
-                : "/" + (pageList ? "list/" : "") + pageID + (pageAddress ? "#" + _buffer[index + 4] : "");
+                : "/" + (pageList ? "list/" : "") + pageId + (pageAddress ? "#" + _buffer[index + 4] : "");
 
             if (pageAddress)
             {
@@ -390,8 +398,6 @@ internal sealed class DatabaseDebuggerService : IDisposable
 
         internal string Render()
         {
-            if (_page == null) { return "Page not found"; }
-
             RenderHeader();
             RenderInfo();
             RenderConvert();
@@ -404,7 +410,7 @@ internal sealed class DatabaseDebuggerService : IDisposable
         private void RenderHeader()
         {
             _writer.AppendLine("<html><head>");
-            _writer.AppendLine($"<title>LiteDB Debugger: #{_pageID:0000} - {_pageType}</title>");
+            _writer.AppendLine($"<title>LiteDB Debugger: #{_pageId:0000} - {_pageType}</title>");
             _writer.AppendLine("<style>");
             _writer.AppendLine("* { box-sizing: border-box; }");
             _writer.AppendLine("body { font-family: monospace; }");
@@ -426,7 +432,7 @@ internal sealed class DatabaseDebuggerService : IDisposable
 
             _writer.AppendLine("</style></head>");
             _writer.AppendLine("<body>");
-            _writer.AppendLine($"<h1>#{_pageID:0000} :: {_pageType} Page</h1>");
+            _writer.AppendLine($"<h1>#{_pageId:0000} :: {_pageType} Page</h1>");
         }
 
         private void RenderInfo()
@@ -440,7 +446,7 @@ internal sealed class DatabaseDebuggerService : IDisposable
 
         private void RenderConvert()
         {
-            _writer.AppendLine($"<form method='post' action='/{_pageID}'>");
+            _writer.AppendLine($"<form method='post' action='/{_pageId}'>");
             _writer.AppendLine("<textarea placeholder='Paste hex page body content here' name='b'></textarea>");
             _writer.AppendLine("<button type='submit'>View</button>");
             _writer.AppendLine("</form>");
@@ -474,7 +480,7 @@ internal sealed class DatabaseDebuggerService : IDisposable
 
             for (var i = 0; i < _items.Count; i++)
             {
-                var item = _items[i];
+                PageItem item = _items[i];
                 blocksLeft = RenderItem(item, blocksLeft);
                 i += item.Span;
             }
@@ -568,10 +574,10 @@ internal sealed class DatabaseDebuggerService : IDisposable
 
         private sealed class PageItem
         {
-            public int Index { get; set; }
+            public int Index { get; init; }
             public string? Id { get; set; }
             public string? Text { get; set; }
-            public byte Value { get; set; }
+            public byte Value { get; init; }
             public int Span { get; set; }
             public string? Caption { get; set; }
             public int Color { get; set; }
@@ -624,7 +630,7 @@ internal sealed class DatabaseDebuggerService : IDisposable
 
             var count = 0;
 
-            foreach (var page in _pages)
+            foreach (BsonDocument page in _pages)
             {
                 _writer.AppendLine("<tr>");
                 _writer.AppendLine($"<td style='text-align: center'><a target='_top' href='/{page["pageID"].AsInt32}'>{page["pageID"].AsInt32}</a></td>");

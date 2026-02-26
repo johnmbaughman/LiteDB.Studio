@@ -85,28 +85,27 @@ public partial class ResultTextView
 
     private static string FormatRow(object? row)
     {
-        if (row is null)
+        switch (row)
         {
-            return "null";
-        }
+            case null:
+                return "null";
+            case BsonDocument doc:
+                try
+                {
+                    Dictionary<string, object?> obj = ConvertBsonDocument(doc);
+                    var opts = new System.Text.Json.JsonSerializerOptions { WriteIndented = true };
+                    return System.Text.Json.JsonSerializer.Serialize(obj, opts);
+                }
+                catch
+                {
+                    // fallback to existing behaviour
+                    return doc.ToString();
+                }
 
-        if (row is BsonDocument doc)
-        {
-            try
-            {
-                Dictionary<string, object?> obj = ConvertBsonDocument(doc);
-                var opts = new System.Text.Json.JsonSerializerOptions { WriteIndented = true };
-                return System.Text.Json.JsonSerializer.Serialize(obj, opts);
-            }
-            catch
-            {
-                // fallback to existing behaviour
-                return doc.ToString();
-            }
+            default:
+                // Fallback to ToString
+                return row.ToString() ?? "null";
         }
-
-        // Fallback to ToString
-        return row.ToString() ?? "null";
     }
 
     private static object? ConvertBsonValue(BsonValue? value)

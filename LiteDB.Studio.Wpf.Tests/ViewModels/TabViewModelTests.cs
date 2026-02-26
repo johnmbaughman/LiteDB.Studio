@@ -1,14 +1,13 @@
 using System.Threading;
 using System.Threading.Tasks;
 using LiteDB.Studio.Wpf.Services;
-using LiteDB.Studio.Wpf.ViewModels;
-using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Logging.Abstractions;
 using NSubstitute;
 using Xunit;
 
 namespace LiteDB.Studio.Wpf.Tests.ViewModels;
 
+/// <summary>Unit tests for <see cref="TabViewModel"/>.</summary>
 public class TabViewModelTests
 {
     [Fact]
@@ -103,9 +102,10 @@ public class TabViewModelTests
     public void EditorText_SetsIsModified_WhenNotPlusTab()
     {
         IDatabaseService? mock = Substitute.For<IDatabaseService>();
-        var vm = new Wpf.ViewModels.TabViewModel(mock, NullLoggerFactory.Instance);
-
-        vm.EditorText = "SELECT 1;";
+        var vm = new Wpf.ViewModels.TabViewModel(mock, NullLoggerFactory.Instance)
+        {
+            EditorText = "SELECT 1;"
+        };
 
         Assert.True(vm.IsModified);
     }
@@ -114,9 +114,11 @@ public class TabViewModelTests
     public void EditorText_DoesNotSetIsModified_WhenPlusTab()
     {
         IDatabaseService? mock = Substitute.For<IDatabaseService>();
-        var vm = new Wpf.ViewModels.TabViewModel(mock, NullLoggerFactory.Instance) { IsPlus = true };
-
-        vm.EditorText = "SELECT 1;";
+        var vm = new Wpf.ViewModels.TabViewModel(mock, NullLoggerFactory.Instance)
+        {
+            IsPlus = true,
+            EditorText = "SELECT 1;"
+        };
 
         Assert.False(vm.IsModified);
     }
@@ -133,5 +135,65 @@ public class TabViewModelTests
 
         Assert.NotNull(vm.LastCompletions);
         Assert.Contains(vm.LastCompletions, c => c.Text == "users");
+    }
+
+    [Fact]
+    public async Task RunCommand_WithEmptyEditorText_StillCallsExecuteAsync()
+    {
+        // Arrange
+        IDatabaseService? mock = Substitute.For<IDatabaseService>();
+        mock.ExecuteAsync(string.Empty, Arg.Any<CancellationToken>())
+            .Returns(new QueryResult { RowCount = 0 });
+
+        var vm = new Wpf.ViewModels.TabViewModel(mock, NullLoggerFactory.Instance);
+        // EditorText defaults to string.Empty
+
+        // Act
+        await vm.RunCommand.ExecuteAsync(null);
+
+        // Assert
+        await mock.Received(1).ExecuteAsync(string.Empty, Arg.Any<CancellationToken>());
+        Assert.Null(vm.LastError);
+    }
+
+    [Fact]
+    public async Task RunCommand_ResetsLastResultToNull_WhenSubsequentQueryFails()
+    {
+        // Arrange — first run succeeds
+        IDatabaseService? mock = Substitute.For<IDatabaseService>();
+        mock.ExecuteAsync(Arg.Any<string>(), Arg.Any<CancellationToken>())
+            .Returns(new QueryResult { RowCount = 1 });
+
+        var vm = new Wpf.ViewModels.TabViewModel(mock, NullLoggerFactory.Instance);
+        await vm.RunCommand.ExecuteAsync(null);
+        Assert.NotNull(vm.LastResult);
+
+        // Act — second run fails
+        mock.ExecuteAsync(Arg.Any<string>(), Arg.Any<CancellationToken>())
+            .Returns(Task.FromException<QueryResult>(new System.InvalidOperationException("Query failed")));
+        await vm.RunCommand.ExecuteAsync(null);
+
+        // Assert
+        Assert.Null(vm.LastResult);
+        Assert.NotNull(vm.LastError);
+        Assert.Contains("Query failed", vm.LastError);
+    }
+
+    [Fact]
+    public async Task RunCommand_SetsLastError_WhenOperationCancelled()
+    {
+        // Arrange — mock service throws OperationCanceledException
+        IDatabaseService? mock = Substitute.For<IDatabaseService>();
+        mock.ExecuteAsync(Arg.Any<string>(), Arg.Any<CancellationToken>())
+            .Returns(Task.FromException<QueryResult>(new System.OperationCanceledException("Operation was cancelled")));
+
+        var vm = new Wpf.ViewModels.TabViewModel(mock, NullLoggerFactory.Instance);
+
+        // Act
+        await vm.RunCommand.ExecuteAsync(null);
+
+        // Assert — caught by ViewModel and reported as error; LastResult stays null
+        Assert.NotNull(vm.LastError);
+        Assert.Null(vm.LastResult);
     }
 }

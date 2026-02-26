@@ -15,7 +15,9 @@ public partial class DatabaseTreeViewModel : ViewModel
     private readonly IFileDialogService _fileDialogService;
     private readonly IFileService _fileService;
 
+    /// <summary>Raised when a tree node requests that a snippet be inserted at the editor caret.</summary>
     public event EventHandler<string>? InsertSnippetRequested;
+    /// <summary>Raised when a tree node requests that a SQL snippet be placed in a tab.</summary>
     public event EventHandler<string>? AddSqlSnippetRequested;
 
     public DatabaseTreeViewModel(
@@ -33,15 +35,19 @@ public partial class DatabaseTreeViewModel : ViewModel
         RootNodes.CollectionChanged += RootNodes_CollectionChanged;
     }
 
+    /// <summary>Gets or sets the root-level nodes of the database tree (one per open database).</summary>
     [ObservableProperty]
     private ObservableCollection<DbTreeNode> _rootNodes;
 
+    /// <summary>Gets or sets the count of user collections shown in the tree.</summary>
     [ObservableProperty]
     private int _collectionsCount;
 
+    /// <summary>Gets or sets the count of system collections shown in the tree.</summary>
     [ObservableProperty]
     private int _systemCount;
 
+    /// <summary>Gets a formatted status string summarising collection counts.</summary>
     public string StatusText => $"Collections: {CollectionsCount} / System: {SystemCount}";
 
     [RelayCommand]
@@ -120,6 +126,8 @@ public partial class DatabaseTreeViewModel : ViewModel
             Logger.LogError(ex, "Exception recalculating counts: {Message}", ex.Message);
         }
     }
+    /// <summary>Reloads the tree by querying collection names from the database service.</summary>
+    /// <param name="cancellationToken">Token used to cancel the operation.</param>
     public async Task LoadRootNodesAsync(CancellationToken cancellationToken = default)
     {
         try
@@ -190,6 +198,8 @@ public partial class DatabaseTreeViewModel : ViewModel
         }
     }
 
+    /// <summary>Raises <see cref="AddSqlSnippetRequested"/> with the given <paramref name="snippet"/>.</summary>
+    /// <param name="snippet">SQL text to forward to the tab manager.</param>
     public void RequestAddSqlSnippet(string snippet)
     {
         if (string.IsNullOrWhiteSpace(snippet)) {

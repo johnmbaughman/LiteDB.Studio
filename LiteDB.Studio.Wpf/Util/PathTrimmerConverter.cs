@@ -4,11 +4,15 @@ using System.Windows.Data;
 
 namespace LiteDB.Studio.Wpf.Util;
 
-// Trims long paths to a balanced display similar to WinForms BalanceString
+/// <summary>
+/// WPF value converter that trims long file paths to a compact form (e.g. <c>C:\User...\file.db</c>).
+/// </summary>
 public class PathTrimmerConverter : IValueConverter
 {
+    /// <summary>Gets or sets the maximum number of characters shown from the directory portion. Default is 30.</summary>
     public int StartCounter { get; set; } = 30;
 
+    /// <inheritdoc />
     public object Convert(object? value, Type targetType, object? parameter, CultureInfo culture)
     {
         if (value == null) {
@@ -38,6 +42,7 @@ public class PathTrimmerConverter : IValueConverter
         }
     }
 
+    /// <inheritdoc />
     public object ConvertBack(object? value, Type targetType, object? parameter, CultureInfo culture)
     {
         throw new NotImplementedException();

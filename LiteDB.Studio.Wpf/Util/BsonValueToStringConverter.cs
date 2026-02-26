@@ -3,8 +3,13 @@ using System.Windows.Data;
 
 namespace LiteDB.Studio.Wpf.Util;
 
+/// <summary>
+/// WPF value converter that formats a <see cref="BsonValue"/> (or plain object) as a human-readable string for grid cells.
+/// Pass the converter parameter <c>"full"</c> to disable string truncation.
+/// </summary>
 public class BsonValueToStringConverter : IValueConverter
 {
+    /// <inheritdoc />
     public object Convert(object? value, Type targetType, object? parameter, CultureInfo culture)
     {
         var isFull = parameter?.ToString() == "full";
@@ -60,10 +65,11 @@ public class BsonValueToStringConverter : IValueConverter
                 }
 
             default:
-                return value?.ToString() ?? string.Empty;
+                return value.ToString() ?? string.Empty;
         }
     }
 
+    /// <inheritdoc />
     public object ConvertBack(object? value, Type targetType, object? parameter, CultureInfo culture)
     {
         return Binding.DoNothing;
