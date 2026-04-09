@@ -28,10 +28,16 @@ public partial class MainViewModel : ShellContentViewModel
     private bool _isConnected;
 
     [ObservableProperty]
+    private bool _isReadOnly;
+
+    [ObservableProperty]
     private string _currentDatabase = string.Empty;
 
     [ObservableProperty]
     private bool _transactionActive;
+
+    [ObservableProperty]
+    private string _lastConnectedPath;
 
     private bool _loadLastDatabaseOnStartup;
     private readonly TabManager _tabManager;
@@ -76,11 +82,13 @@ public partial class MainViewModel : ShellContentViewModel
         Tree.InsertSnippetRequested += (_, snippet) => _tabManager.InsertSnippet(snippet);
         Tree.AddSqlSnippetRequested += (_, snippet) => _tabManager.AddSqlSnippet(snippet);
 
+        LastConnectedPath = _appSettingsService.ApplicationSettings.LastConnectionStrings?.Filename ?? string.Empty;
+
         _dbService.ConnectionStateChanged += OnConnectionStateChanged;
         _dbService.TransactionStateChanged += OnTransactionStateChanged;
 
         ConnectCommand = new AsyncRelayCommand(ConnectAsync);
-        DisconnectCommand = new RelayCommand(Disconnect);
+        DisconnectCommand = new AsyncRelayCommand(DisconnectAsync);
         RunCommand = new RelayCommand(Run);
         NewTabCommand = new RelayCommand(() => _tabManager.AddNewTab());
         CloseTabCommand = new AsyncRelayCommand<TabViewModel>(async (tab, ct) =>
@@ -156,7 +164,7 @@ public partial class MainViewModel : ShellContentViewModel
     /// <summary>Command that shows the connection dialog and connects to the selected database.</summary>
     public IAsyncRelayCommand ConnectCommand { get; }
     /// <summary>Command that disconnects from the current database.</summary>
-    public IRelayCommand DisconnectCommand { get; }
+    public IAsyncRelayCommand DisconnectCommand { get; }
     /// <summary>Command that executes the query in the selected tab.</summary>
     public IRelayCommand RunCommand { get; }
     /// <summary>Command that opens a new empty query tab.</summary>
@@ -289,13 +297,11 @@ public partial class MainViewModel : ShellContentViewModel
 
     private async Task ConnectAsync(CancellationToken cancellationToken)
     {
-        // If already connected, perform disconnect instead (toggle behavior)
+        // If already connected, run the full disconnect flow (T178); abort if user cancels
         if (_dbService.IsConnected)
         {
-            await _dbService.DisconnectAsync();
-            IsConnected = false;
-            CursorText = "Disconnected";
-            return;
+            await DisconnectCommand.ExecuteAsync(null);
+            if (_dbService.IsConnected) { return; }
         }
 
         ConnectionManagerDialogResult? dialogResult = _connectionDialogService.ShowDialog();
@@ -345,22 +351,45 @@ public partial class MainViewModel : ShellContentViewModel
         await Tree.LoadRootNodesAsync(cancellationToken);
     }
 
-    private void Disconnect()
+    private async Task DisconnectAsync(CancellationToken cancellationToken)
     {
-        if (_tabManager.HasUnsavedTabs)
+        // Step 1: if a transaction is active, confirm rollback first
+        if (TransactionActive)
         {
-            var confirmed = _dialogService.Confirm(
-                "You have unsaved changes in some tabs. Do you want to disconnect anyway?",
-                "Unsaved Changes",
+            var rollbackConfirmed = _dialogService.Confirm(
+                "An active transaction will be rolled back. Proceed with disconnect?",
+                "Active Transaction",
                 DialogIcon.Warning);
-            if (!confirmed) {
+            if (!rollbackConfirmed) { return; }
+
+            try
+            {
+                await _dbService.RollbackTransactionAsync(cancellationToken);
+            }
+            catch (Exception ex)
+            {
+                CursorText = "Error rolling back transaction: " + ex.Message;
                 return;
             }
         }
 
+        // Step 2: prompt save for each modified tab (tabs remain open after disconnect)
+        foreach (TabViewModel tab in Tabs.Where(t => !t.IsPlus && t.IsModified).ToList())
+        {
+            var save = _dialogService.Confirm(
+                $"Save changes to {(string.IsNullOrEmpty(tab.Filename) ? tab.Title : tab.Filename)}?",
+                "Unsaved Changes",
+                DialogIcon.Question);
+            if (save)
+            {
+                await SaveTabAsync(tab, cancellationToken);
+            }
+        }
+
+        // Step 3: disconnect — tabs remain with content preserved, actions disabled until reconnected
         try
         {
-            _dbService.Disconnect();
+            await _dbService.DisconnectAsync();
         }
         finally
         {
@@ -431,13 +460,14 @@ public partial class MainViewModel : ShellContentViewModel
         {
             cancellationToken.ThrowIfCancellationRequested();
             var connectionString = BuildConnectionString(cs);
-            await _dbService.ConnectAsync(connectionString, cancellationToken);
+            await _dbService.ConnectAsync(connectionString, cs.ReadOnly, cs.Password, cancellationToken);
 
             _appSettingsService.ApplicationSettings.LastConnectionStrings = cs;
             _appSettingsService.AddToRecentList(cs);
 
             IsConnected = true;
             CurrentDatabase = filename;
+            LastConnectedPath = filename;
 
             if (populateTree)
             {
@@ -524,6 +554,8 @@ public partial class MainViewModel : ShellContentViewModel
 
     private void OnConnectionStateChanged(object? sender, ConnectionStateChangedEventArgs e)
     {
+        IsReadOnly = e.IsConnected && _dbService.IsReadOnly;
+
         // Open a fresh query tab when the database connects (if no user tabs exist)
         try
         {

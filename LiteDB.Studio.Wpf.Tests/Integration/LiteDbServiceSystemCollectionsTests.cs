@@ -22,7 +22,7 @@ public class LiteDbServiceSystemCollectionsTests : IDisposable
     public async Task GetSystemCollectionNamesAsync_ReturnsRegisteredSystemCollections()
     {
         var cts = new CancellationTokenSource();
-        await _service.ConnectAsync(":memory:", cts.Token);
+        await _service.ConnectAsync(":memory:", false, null, cts.Token);
 
         var systems = (await _service.GetSystemCollectionNamesAsync(cts.Token)).ToArray();
 

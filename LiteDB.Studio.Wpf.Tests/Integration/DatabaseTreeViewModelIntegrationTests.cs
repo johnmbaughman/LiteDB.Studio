@@ -24,7 +24,7 @@ public class DatabaseTreeViewModelIntegrationTests
         // Arrange
         var service = new LiteDbService();
         var cts = new CancellationTokenSource();
-        await service.ConnectAsync(":memory:", cts.Token);
+        await service.ConnectAsync(":memory:", false, null, cts.Token);
 
         // create a test collection
         await service.ExecuteAsync("INSERT INTO test_collection VALUES { name: 'a' }", cts.Token);

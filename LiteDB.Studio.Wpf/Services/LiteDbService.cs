@@ -13,10 +13,14 @@ public class LiteDbService(IOptions<LiteDbOptions>? options = null) : IDatabaseS
 {
     private readonly int _maxRows = options?.Value.MaxRows ?? LiteDbOptions.DEFAULT_MAX_ROWS;
     private LiteDatabase? _db;
+    private bool _isReadOnly;
     private readonly Lock _sync = new();
 
     /// <inheritdoc />
     public bool IsConnected => _db != null;
+
+    /// <inheritdoc />
+    public bool IsReadOnly => _isReadOnly;
 
     /// <inheritdoc />
     public bool TransactionActive { get; private set; }
@@ -71,15 +75,16 @@ public class LiteDbService(IOptions<LiteDbOptions>? options = null) : IDatabaseS
             finally
             {
                 _db = null;
+                _isReadOnly = false;
                 ConnectionStateChanged?.Invoke(this, new ConnectionStateChangedEventArgs(false));
             }
         }
     }
 
     /// <inheritdoc />
-    public Task ConnectAsync(string connectionString, CancellationToken cancellationToken)
+    public Task ConnectAsync(string connectionString, bool readOnly, string? password, CancellationToken ct)
     {
-        cancellationToken.ThrowIfCancellationRequested();
+        ct.ThrowIfCancellationRequested();
         if (IsConnected)
         {
             throw new InvalidOperationException("Already connected");
@@ -87,14 +92,25 @@ public class LiteDbService(IOptions<LiteDbOptions>? options = null) : IDatabaseS
 
         try
         {
-            // Lightweight connect: accept a file path or a LiteDB connection string
-            _db = new LiteDatabase(connectionString);
+            // Parse into a ConnectionString object so readOnly and password can be applied explicitly.
+            // Password must never be logged or stored in any field beyond this method's scope.
+            var cs = new ConnectionString(connectionString)
+            {
+                ReadOnly = readOnly
+            };
+            if (password != null)
+            {
+                cs.Password = password;
+            }
 
-            // Log discovered collections immediately for diagnostics
+            _db = new LiteDatabase(cs);
+            _isReadOnly = readOnly;
+
+            // Log only the filename — never the full connection string, which may contain a password.
             try
             {
                 var names = _db.GetCollectionNames().ToArray();
-                Log.Information("Connected to LiteDB. Connection string: {Conn}. Collections found: {Count}", connectionString, names.Length);
+                Log.Information("Connected to LiteDB. Filename: {Filename}. ReadOnly: {ReadOnly}. Collections found: {Count}", cs.Filename, readOnly, names.Length);
             }
             catch (Exception ex)
             {
@@ -105,7 +121,7 @@ public class LiteDbService(IOptions<LiteDbOptions>? options = null) : IDatabaseS
         }
         catch (Exception ex)
         {
-            Log.Error(ex, "Failed to connect to database with connection string {Conn}", connectionString);
+            Log.Error(ex, "Failed to connect to database");
             throw;
         }
 

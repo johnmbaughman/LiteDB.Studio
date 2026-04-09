@@ -22,7 +22,7 @@ public class MainViewModelTests
     public Task ConnectCommand_SetsIsConnected()
     {
         IDatabaseService? mockDbService = Substitute.For<IDatabaseService>();
-        mockDbService.ConnectAsync(Arg.Any<string>(), Arg.Any<CancellationToken>())
+        mockDbService.ConnectAsync(Arg.Any<string>(), Arg.Any<bool>(), Arg.Any<string?>(), Arg.Any<CancellationToken>())
             .Returns(Task.CompletedTask);
 
         var vm = new MainViewModel(
@@ -32,7 +32,7 @@ public class MainViewModelTests
             Substitute.For<IDialogService>(),
             Substitute.For<IFileDialogService>(),
             Substitute.For<IFileService>(),
-            Substitute.For<IAppSettingsService>(),
+            CreateAppSettingsMock(),
             NullLogger<MainViewModel>.Instance,
             NullLoggerFactory.Instance) {
             // Since ConnectCommand shows a dialog, we can't easily test the full flow
@@ -81,7 +81,7 @@ public class MainViewModelTests
             Substitute.For<IDialogService>(),
             Substitute.For<IFileDialogService>(),
             Substitute.For<IFileService>(),
-            Substitute.For<IAppSettingsService>(),
+            CreateAppSettingsMock(),
             NullLogger<MainViewModel>.Instance,
             NullLoggerFactory.Instance);
 
@@ -106,7 +106,7 @@ public class MainViewModelTests
             Substitute.For<IDialogService>(),
             Substitute.For<IFileDialogService>(),
             Substitute.For<IFileService>(),
-            Substitute.For<IAppSettingsService>(),
+            CreateAppSettingsMock(),
             NullLogger<MainViewModel>.Instance,
             NullLoggerFactory.Instance);
 
@@ -133,7 +133,7 @@ public class MainViewModelTests
             Substitute.For<IDialogService>(),
             Substitute.For<IFileDialogService>(),
             Substitute.For<IFileService>(),
-            Substitute.For<IAppSettingsService>(),
+            CreateAppSettingsMock(),
             NullLogger<MainViewModel>.Instance,
             NullLoggerFactory.Instance);
 
@@ -165,7 +165,7 @@ public class MainViewModelTests
             Substitute.For<IDialogService>(),
             Substitute.For<IFileDialogService>(),
             mockFileService,
-            Substitute.For<IAppSettingsService>(),
+            CreateAppSettingsMock(),
             NullLogger<MainViewModel>.Instance,
             NullLoggerFactory.Instance);
 
@@ -204,7 +204,7 @@ public class MainViewModelTests
             Substitute.For<IDialogService>(),
             mockFileDialogService,
             mockFileService,
-            Substitute.For<IAppSettingsService>(),
+            CreateAppSettingsMock(),
             NullLogger<MainViewModel>.Instance,
             NullLoggerFactory.Instance);
 
@@ -228,7 +228,7 @@ public class MainViewModelTests
             Substitute.For<IDialogService>(),
             Substitute.For<IFileDialogService>(),
             Substitute.For<IFileService>(),
-            Substitute.For<IAppSettingsService>(),
+            CreateAppSettingsMock(),
             NullLogger<MainViewModel>.Instance,
             NullLoggerFactory.Instance);
 
@@ -263,7 +263,7 @@ public class MainViewModelTests
             Substitute.For<IDialogService>(),
             Substitute.For<IFileDialogService>(),
             Substitute.For<IFileService>(),
-            Substitute.For<IAppSettingsService>(),
+            CreateAppSettingsMock(),
             NullLogger<MainViewModel>.Instance,
             NullLoggerFactory.Instance);
 
@@ -287,7 +287,7 @@ public class MainViewModelTests
             Substitute.For<IDialogService>(),
             Substitute.For<IFileDialogService>(),
             Substitute.For<IFileService>(),
-            Substitute.For<IAppSettingsService>(),
+            CreateAppSettingsMock(),
             NullLogger<MainViewModel>.Instance,
             NullLoggerFactory.Instance);
 
@@ -319,7 +319,7 @@ public class MainViewModelTests
             Substitute.For<IDialogService>(),
             Substitute.For<IFileDialogService>(),
             Substitute.For<IFileService>(),
-            Substitute.For<IAppSettingsService>(),
+            CreateAppSettingsMock(),
             NullLogger<MainViewModel>.Instance,
             NullLoggerFactory.Instance);
 
@@ -343,7 +343,7 @@ public class MainViewModelTests
             Substitute.For<IDialogService>(),
             Substitute.For<IFileDialogService>(),
             Substitute.For<IFileService>(),
-            Substitute.For<IAppSettingsService>(),
+            CreateAppSettingsMock(),
             NullLogger<MainViewModel>.Instance,
             NullLoggerFactory.Instance);
 
@@ -366,5 +366,12 @@ public class MainViewModelTests
             Substitute.For<IFileDialogService>(),
             Substitute.For<IFileService>(),
             NullLogger<DatabaseTreeViewModel>.Instance);
+    }
+
+    private static IAppSettingsService CreateAppSettingsMock()
+    {
+        var mock = Substitute.For<IAppSettingsService>();
+        mock.ApplicationSettings.Returns(new Util.ApplicationSettings());
+        return mock;
     }
 }

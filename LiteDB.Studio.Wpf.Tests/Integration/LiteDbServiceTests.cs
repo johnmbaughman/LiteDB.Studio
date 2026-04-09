@@ -29,7 +29,7 @@ public class LiteDbServiceTests : IDisposable
         var cts = new CancellationTokenSource();
 
         // Act
-        await _service.ConnectAsync(":memory:", cts.Token);
+        await _service.ConnectAsync(":memory:", false, null, cts.Token);
 
         // Assert
         Assert.True(_service.IsConnected);
@@ -41,7 +41,7 @@ public class LiteDbServiceTests : IDisposable
     {
         // Arrange
         var cts = new CancellationTokenSource();
-        await _service.ConnectAsync(":memory:", cts.Token);
+        await _service.ConnectAsync(":memory:", false, null, cts.Token);
         Assert.True(_service.IsConnected);
 
         // Act
@@ -57,7 +57,7 @@ public class LiteDbServiceTests : IDisposable
     {
         // Arrange
         var cts = new CancellationTokenSource();
-        await _service.ConnectAsync(":memory:", cts.Token);
+        await _service.ConnectAsync(":memory:", false, null, cts.Token);
 
         // Insert some test data
         const string insertQuery = "INSERT INTO test_collection VALUES { name: 'test1', value: 42 }";
@@ -78,7 +78,7 @@ public class LiteDbServiceTests : IDisposable
     {
         // Arrange
         var cts = new CancellationTokenSource();
-        await _service.ConnectAsync(":memory:", cts.Token);
+        await _service.ConnectAsync(":memory:", false, null, cts.Token);
 
         // Insert a test document
         const string insertQuery = "INSERT INTO test_collection VALUES { name: 'test1', value: 42 }";
@@ -105,7 +105,7 @@ public class LiteDbServiceTests : IDisposable
     {
         // Arrange
         var cts = new CancellationTokenSource();
-        await _service.ConnectAsync(":memory:", cts.Token);
+        await _service.ConnectAsync(":memory:", false, null, cts.Token);
 
         // Create a test collection
         const string insertQuery = "INSERT INTO test_drop_collection VALUES { name: 'test' }";
@@ -140,7 +140,7 @@ public class LiteDbServiceTests : IDisposable
     {
         // Arrange
         var cts = new CancellationTokenSource();
-        await _service.ConnectAsync(":memory:", cts.Token);
+        await _service.ConnectAsync(":memory:", false, null, cts.Token);
 
         // Act
         await _service.BeginTransactionAsync(cts.Token);
@@ -162,7 +162,7 @@ public class LiteDbServiceTests : IDisposable
         // so verifying that inserted data is absent after rollback is not achievable via ExecuteAsync.
         // This test verifies the transaction lifecycle state only.
         var cts = new CancellationTokenSource();
-        await _service.ConnectAsync(":memory:", cts.Token);
+        await _service.ConnectAsync(":memory:", false, null, cts.Token);
 
         await _service.BeginTransactionAsync(cts.Token);
         Assert.True(_service.TransactionActive);
@@ -179,7 +179,7 @@ public class LiteDbServiceTests : IDisposable
     {
         // Arrange
         var cts = new CancellationTokenSource();
-        await _service.ConnectAsync(":memory:", cts.Token);
+        await _service.ConnectAsync(":memory:", false, null, cts.Token);
         await _service.ExecuteAsync(
             "INSERT INTO nested_test VALUES { name: 'Alice', address: { street: '123 Main', city: 'Springfield' } }",
             cts.Token);
@@ -199,7 +199,7 @@ public class LiteDbServiceTests : IDisposable
     {
         // Arrange
         var cts = new CancellationTokenSource();
-        await _service.ConnectAsync(":memory:", cts.Token);
+        await _service.ConnectAsync(":memory:", false, null, cts.Token);
         await _service.ExecuteAsync(
             "INSERT INTO array_test VALUES { title: 'Example', tags: ['one', 'two', 'three'] }",
             cts.Token);
@@ -218,7 +218,7 @@ public class LiteDbServiceTests : IDisposable
     {
         // Arrange — two documents with disjoint field sets
         var cts = new CancellationTokenSource();
-        await _service.ConnectAsync(":memory:", cts.Token);
+        await _service.ConnectAsync(":memory:", false, null, cts.Token);
         await _service.ExecuteAsync("INSERT INTO mixed_test VALUES { fieldA: 'value1' }", cts.Token);
         await _service.ExecuteAsync("INSERT INTO mixed_test VALUES { fieldB: 42 }", cts.Token);
 
@@ -238,12 +238,12 @@ public class LiteDbServiceTests : IDisposable
     {
         // Arrange
         var cts = new CancellationTokenSource();
-        await _service.ConnectAsync(":memory:", cts.Token);
+        await _service.ConnectAsync(":memory:", false, null, cts.Token);
         Assert.True(_service.IsConnected);
 
         // Act & Assert
         await Assert.ThrowsAsync<InvalidOperationException>(
-            () => _service.ConnectAsync(":memory:", cts.Token));
+            () => _service.ConnectAsync(":memory:", false, null, cts.Token));
     }
 
     [Fact]
@@ -254,13 +254,13 @@ public class LiteDbServiceTests : IDisposable
         var service1 = new LiteDbService();
         try
         {
-            await service1.ConnectAsync(tempFile, CancellationToken.None);
+            await service1.ConnectAsync(tempFile, false, null, CancellationToken.None);
             Assert.True(service1.IsConnected);
 
             // Act — second instance on the same file should fail (direct/exclusive mode)
             var service2 = new LiteDbService();
             await Assert.ThrowsAnyAsync<Exception>(
-                () => service2.ConnectAsync(tempFile, CancellationToken.None));
+                () => service2.ConnectAsync(tempFile, false, null, CancellationToken.None));
         }
         finally
         {

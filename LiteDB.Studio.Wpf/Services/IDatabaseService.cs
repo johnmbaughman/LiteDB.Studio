@@ -9,6 +9,9 @@ public interface IDatabaseService : IDisposable, IAsyncDisposable
     /// <summary>Gets a value indicating whether a database connection is currently open.</summary>
     bool IsConnected { get; }
 
+    /// <summary>Gets a value indicating whether the database was opened in read-only mode.</summary>
+    bool IsReadOnly { get; }
+
     /// <summary>Gets the underlying database object, or <c>null</c> when not connected.</summary>
     object? Database { get; }
 
@@ -17,8 +20,10 @@ public interface IDatabaseService : IDisposable, IAsyncDisposable
 
     /// <summary>Opens a connection to the database identified by <paramref name="connectionString"/>.</summary>
     /// <param name="connectionString">LiteDB connection string or file path.</param>
-    /// <param name="cancellationToken">Token used to cancel the operation.</param>
-    Task ConnectAsync(string connectionString, CancellationToken cancellationToken);
+    /// <param name="readOnly">When <c>true</c>, the database is opened in read-only mode.</param>
+    /// <param name="password">Encryption password, or <c>null</c> for an unencrypted database.</param>
+    /// <param name="ct">Token used to cancel the operation.</param>
+    Task ConnectAsync(string connectionString, bool readOnly, string? password, CancellationToken ct);
 
     /// <summary>Closes the active database connection asynchronously.</summary>
     Task DisconnectAsync();
@@ -29,7 +34,11 @@ public interface IDatabaseService : IDisposable, IAsyncDisposable
     /// <summary>Executes a SQL query and returns the result set.</summary>
     /// <param name="query">The SQL statement to execute.</param>
     /// <param name="cancellationToken">Token used to cancel the operation.</param>
-    /// <returns>A <see cref="QueryResult"/> containing rows, columns, and metadata.</returns>
+    /// <returns>
+    /// A <see cref="QueryResult"/> containing rows, columns, and metadata.
+    /// The <c>Metadata</c> dictionary includes an <c>IsDdl</c> key (<see langword="bool"/>) set to
+    /// <see langword="true"/> when the statement is a DDL operation (CREATE or DROP collection/index).
+    /// </returns>
     Task<QueryResult> ExecuteAsync(string? query, CancellationToken cancellationToken);
 
     /// <summary>Returns the names of all user collections in the database.</summary>
