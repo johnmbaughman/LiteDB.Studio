@@ -10,12 +10,14 @@
 
 #### ConnectAsync
 ```
-Signature: Task ConnectAsync(string connectionString, CancellationToken cancellationToken)
+Signature: Task ConnectAsync(string connectionString, bool readOnly, string? password, CancellationToken cancellationToken)
 Purpose: Establish connection to database file
 Preconditions: Not currently connected
-Postconditions: IsConnected = true; connection handle acquired
+Postconditions: IsConnected = true; IsReadOnly set from readOnly param; connection handle acquired
 Parameters:
   - connectionString: LiteDB connection string or file path
+  - readOnly: Open database in read-only mode (sets ConnectionString.ReadOnly = true)
+  - password: Optional encryption password (maps to ConnectionString.Password; MUST NOT be logged, stored, or retained beyond this call)
   - cancellationToken: Cancellation support
 Returns: Task (void)
 Errors:
@@ -23,6 +25,7 @@ Errors:
   - UnauthorizedAccessException: Insufficient permissions
   - InvalidOperationException: Already connected
   - LockedException: File locked by another process
+Security: password parameter MUST NOT appear in log output, settings files, or ViewModel state
 ```
 
 #### DisconnectAsync
@@ -44,6 +47,14 @@ Purpose: Query current connection state
 Returns: true if connected; false otherwise
 ```
 
+#### IsReadOnly (Property)
+```
+Signature: bool IsReadOnly { get; }
+Purpose: Query whether the current connection is read-only
+Returns: true if opened with readOnly = true; false if writable or not connected
+Note: When true, mutating service methods (UpdateDocumentFieldAsync, BeginTransactionAsync) return structured errors; ExecuteAsync runs SELECT normally but returns a structured "read-only" error for write queries rather than throwing
+```
+
 ### Query Execution
 
 #### ExecuteAsync
@@ -62,7 +73,7 @@ Returns: QueryResult
   - RowCount: number of rows returned
   - ExecutionTime: elapsed query time
   - Warnings: any engine warnings
-  - Metadata: extensible metadata (e.g., affected rows for UPDATE/DELETE)
+  - Metadata: extensible metadata (e.g., affected rows for UPDATE/DELETE; IsDdl: bool — true when query is a DDL statement such as CREATE/DROP COLLECTION or CREATE/DROP INDEX)
 Errors:
   - InvalidOperationException: Not connected
   - LiteDbSyntaxException: Invalid SQL syntax
@@ -117,7 +128,7 @@ Errors:
 ```
 Signature: Task UpdateDocumentFieldAsync(string collectionName, object documentId, string fieldPath, object newValue, CancellationToken cancellationToken)
 Purpose: Update a single field in a document (triggered by grid cell edit)
-Preconditions: IsConnected = true; document exists
+Preconditions: IsConnected = true; IsReadOnly = false; document exists
 Parameters:
   - collectionName: Target collection
   - documentId: Document _id (typically ObjectId or int)
@@ -140,7 +151,7 @@ Errors:
 ```
 Signature: Task BeginTransactionAsync(CancellationToken cancellationToken)
 Purpose: Start a new transaction
-Preconditions: IsConnected = true; no active transaction
+Preconditions: IsConnected = true; IsReadOnly = false; no active transaction
 Postconditions: TransactionActive = true
 Returns: Task (void)
 Errors:
@@ -235,13 +246,16 @@ Usage: MainViewModel subscribes to update TransactionActive property and enable/
 
 ## Acceptance Criteria
 
-- [ ] ConnectAsync establishes connection and sets IsConnected = true
+- [ ] ConnectAsync(path, readOnly=false, password=null) establishes writable connection and sets IsConnected = true; IsReadOnly = false
+- [ ] ConnectAsync(path, readOnly=true, password=null) establishes read-only connection; IsReadOnly = true
+- [ ] ConnectAsync password parameter never appears in logs, settings, or ViewModel state
 - [ ] DisconnectAsync releases resources and sets IsConnected = false
-- [ ] ExecuteAsync returns QueryResult with Rows, Columns, ExecutionTime, LimitExceeded
+- [ ] ExecuteAsync returns QueryResult with Rows, Columns, ExecutionTime, LimitExceeded; Metadata["IsDdl"] = true for DDL queries
+- [ ] ExecuteAsync in read-only mode: SELECT succeeds; write queries return structured error in LastError (not throw)
 - [ ] Cancellation via CancellationToken aborts query and releases resources
 - [ ] GetCollectionNamesAsync returns user collections; GetSystemCollectionNamesAsync returns system collections
 - [ ] GetCollectionSchemaAsync infers schema from collection documents
 - [ ] UpdateDocumentFieldAsync updates document field in database
-- [ ] BeginTransactionAsync/CommitTransactionAsync/RollbackTransactionAsync manage transaction lifecycle
+- [ ] BeginTransactionAsync/CommitTransactionAsync/RollbackTransactionAsync manage transaction lifecycle; BeginTransactionAsync returns structured error when IsReadOnly = true
 - [ ] CheckpointAsync flushes WAL to disk
 - [ ] Events fire when connection or transaction state changes

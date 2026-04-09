@@ -1,23 +1,33 @@
 # Implementation Plan: WPF Port — LiteDB.Studio Migration
 
-**Branch**: `002-wpf-port` | **Date**: 2026-01-22 | **Spec**: [spec.md](spec.md)
+**Branch**: `002-wpf-port` | **Date**: 2026-04-07 | **Spec**: [spec.md](spec.md)
 **Input**: Feature specification from `specs/002-wpf-port/spec.md`
 
 ## Summary
 
-Migrate LiteDB.Studio from WinForms to WPF using MVVM architecture, achieving feature parity for execution engine, result display, database explorer, code completion, transactions, file operations, debugger, and logging. All database interactions routed through IDatabaseService abstraction. Implementation uses CommunityToolkit.Mvvm for MVVM patterns, AvalonEdit for SQL editor, Serilog for structured logging, and maintains behavioral parity with existing WinForms ConnectionForm.cs.
+Migrate LiteDB.Studio from WinForms to WPF using MVVM architecture, achieving feature parity for execution engine, result display, database explorer, code completion, transactions, file operations, debugger, and logging. All database interactions routed through `IDatabaseService` abstraction. Implementation uses CommunityToolkit.Mvvm for MVVM patterns, AvalonEdit for SQL editor, Serilog for structured logging (30-day rolling retention), and maintains behavioral parity with existing WinForms `ConnectionForm.cs`. Targets **LiteDB 5.x** exclusively. Single active DB connection at all times; multi-DB is explicitly out of scope.
 
 ## Technical Context
 
-**Language/Version**: C# / .NET 9.0 (or compatible with existing LiteDB.Studio.Wpf.csproj target)  
-**Primary Dependencies**: CommunityToolkit.Mvvm (MVVM framework), AvalonEdit (SQL editor), Serilog (logging framework), LiteDB (database engine)  
-**Storage**: LiteDB database files (user-provided paths); application preferences for settings; log files in %APPDATA%\Temp\LiteDB.Studio\  
-**Testing**: xUnit (align with existing LiteDB.Tests project); mocking via NSubstitute  
+**Language/Version**: C# / .NET 9.0  
+**Primary Dependencies**: CommunityToolkit.Mvvm (MVVM framework), AvalonEdit (SQL editor), Serilog + Serilog.Sinks.File (logging), LiteDB 5.x (database engine)  
+**Storage**: LiteDB database files (user-provided paths); `%APPDATA%\LiteDB.Studio\settings.json` (app preferences); `%APPDATA%\Temp\LiteDB.Studio\log-YYYYMMDD.txt` (rolling logs, 30-day retention)  
+**Testing**: xUnit (align with existing `LiteDB.Tests` project); mocking via NSubstitute  
 **Target Platform**: Windows desktop (WPF)  
 **Project Type**: Single WPF desktop application  
-**Performance Goals**: Execute and render queries <1s for typical local DBs (<1000 rows); <3s for larger result sets (up to 10k rows); logging adds <5% performance overhead  
-**Constraints**: UI must not freeze during long queries (cancellable async operations); result limiting prevents UI freezes; logging is mandatory and thread-safe  
-**Scale/Scope**: ~7 migration phases plus logging implementation; primary ViewModels (MainViewModel, TabViewModel, DatabaseTreeViewModel); ~20-30 commands; integration with existing LiteDB engine and Serilog
+**Performance Goals**:
+- Execute and render queries <1s for typical local DBs (<1000 rows); <3s for larger result sets (up to 10k rows)
+- Editor keystroke render ≤50ms p95
+- Completion provider latency ≤200ms local schema (≤500ms on-demand fetch)
+- Automatic completion debounce ≤150ms
+- Logging overhead <5% performance impact  
+**Constraints**:
+- UI must not freeze during long queries (cancellable async operations)
+- Result limiting (default 1000 rows, per-tab `RowLimit` override) prevents UI freezes
+- Logging is mandatory, thread-safe, and must not store passwords
+- Single active database connection at all times
+- `password` parameter to `ConnectAsync` MUST NOT be logged, stored, or retained beyond the connection attempt  
+**Scale/Scope**: ~9 implementation phases plus logging and editor porting; primary ViewModels (`MainViewModel`, `TabViewModel`, `DatabaseTreeViewModel`); ~20-30 commands; integration with LiteDB 5.x engine and Serilog
 
 ## Constitution Check
 
@@ -27,40 +37,44 @@ Migrate LiteDB.Studio from WinForms to WPF using MVVM architecture, achieving fe
 |------------|--------|-------|
 | All edits via `apply_patch` | ✓ PASS | Constitution requires minimal diffs; implementation will use apply_patch for all code changes |
 | Consistency with existing C#/WPF patterns | ✓ PASS | Spec requires following existing style and CommunityToolkit.Mvvm conventions |
-| ViewModel-First UI Design | ✓ PASS | Spec mandates MVVM-first; UI logic in ViewModels only |
+| ViewModel-First UI Design | ✓ PASS | Spec mandates MVVM-first; UI logic in ViewModels only; code-behind for event wiring only |
 | Resources under LiteDB.Studio.Wpf/Resources with pack URIs | ✓ PASS | Spec specifies resource path and pack URI format |
 | DB access through IDatabaseService/LiteDbService | ✓ PASS | Spec requires all DB interactions via service abstraction |
-| Tests required for logical changes | ✓ PASS | Spec Phase 7 requires unit tests for ViewModels and integration tests for LiteDbService |
-| Logging using Serilog with file output | ✓ PASS | Constitution v1.2.1 requires structured logging with mandatory exception handling; spec v1.1 details Serilog integration, file location, and exception logging with message and stack trace |
+| Tests required for logical changes | ✓ PASS | All phases require unit tests for ViewModels and integration tests for LiteDbService |
+| Logging using Serilog with file output | ✓ PASS | Constitution v1.2.1 requires structured logging; spec v1.1 details Serilog integration, file location, exception logging, and 30-day retention |
 | Human-only commits | ✓ PASS | Constitution and spec both require human-performed commits; agents prepare patches only |
 | PowerShell for agent scripts | ✓ PASS | Repository uses PowerShell scripts in .specify/scripts/powershell/ |
 
 **Gate Result**: ✅ PASS — No violations; all constitution requirements align with spec
 
-**Post-Phase-1 Re-Check** (2026-01-19):
+**Post-Phase-1 Re-Check** (2026-04-07 — updated after 19 clarification Q&As):
 
 | Requirement | Status | Notes |
 |------------|--------|-------|
-| Contracts align with constitution | ✓ PASS | IDatabaseService uses abstraction pattern; ViewModels follow MVVM-first |
+| Contracts align with constitution | ✓ PASS | IDatabaseService uses abstraction pattern; ViewModels follow MVVM-first; `readOnly`/`password` added to ConnectAsync |
 | Data model supports testability | ✓ PASS | QueryResult, ColumnInfo, and ViewModels defined with clear boundaries; mockable service |
 | Resource conventions followed | ✓ PASS | IconUri properties use pack URI format; quickstart documents resource path |
-| Logging integration planned | ✓ PASS | Logging configuration and setup included in Phase 1 design artifacts, including mandatory exception handling with message and stack trace logging |
-| Tests planned | ✓ PASS | Unit tests for ViewModels (mocked service); integration tests for LiteDbService (in-memory databases) |
+| Logging integration planned | ✓ PASS | Serilog configuration with 30-day retention, mandatory exception logging, no password logging |
+| Tests planned | ✓ PASS | Unit tests for ViewModels (mocked service); integration tests for LiteDbService (in-memory LiteDB 5.x databases) |
+| Password security | ✓ PASS | ConnectAsync password never logged, stored in preferences, or retained in ViewModel state |
+| Single connection enforcement | ✓ PASS | ConnectCommand runs full disconnect flow before opening new connection |
 
-**Post-Phase-1 Gate Result**: ✅ PASS — Design artifacts (data-model.md, contracts, quickstart.md) satisfy all constitutional requirements
+**Post-Phase-1 Gate Result**: ✅ PASS — All design artifacts satisfy constitutional requirements
 
 ## Project Structure
 
 ### Documentation (this feature)
 
 ```text
-specs/[###-feature]/
+specs/002-wpf-port/
 ├── plan.md              # This file (/speckit.plan command output)
-├── research.md          # Phase 0 output (/speckit.plan command)
-├── data-model.md        # Phase 1 output (/speckit.plan command)
-├── quickstart.md        # Phase 1 output (/speckit.plan command)
-├── contracts/           # Phase 1 output (/speckit.plan command)
-└── tasks.md             # Phase 2 output (/speckit.tasks command - NOT created by /speckit.plan)
+├── research.md          # Phase 0 output
+├── data-model.md        # Phase 1 output
+├── quickstart.md        # Phase 1 output
+├── contracts/           # Phase 1 output
+│   ├── IDatabaseService.md
+│   └── ViewModels.md
+└── tasks.md             # Phase 2 output (/speckit.tasks command)
 ```
 
 ### Source Code (repository root)
@@ -69,43 +83,59 @@ specs/[###-feature]/
 LiteDB.Studio.Wpf/
 ├── Services/
 │   ├── IDatabaseService.cs          # DB abstraction interface
-│   ├── LiteDbService.cs             # LiteDB-specific implementation
-│   └── [other services]
+│   ├── LiteDbService.cs             # LiteDB 5.x implementation
+│   └── SqlCompletionProvider.cs     # AvalonEdit completion provider
 ├── ViewModels/
 │   ├── MainViewModel.cs             # Main window ViewModel
 │   ├── TabViewModel.cs              # Editor/result tab ViewModel
 │   ├── DatabaseTreeViewModel.cs     # DB explorer root ViewModel
-│   └── DbTreeNode.cs                # Tree node ViewModel
+│   ├── DbTreeNode.cs                # Tree node ViewModel (IsSystemCollection flag)
+│   └── DebuggerViewModel.cs         # Debugger ViewModel
 ├── Views/
 │   ├── MainWindow.xaml/.cs          # Main window view
-│   ├── EditorTab.xaml/.cs           # Editor/result tab view
-│   └── DatabaseTreeView.xaml/.cs    # DB explorer tree view
+│   ├── DatabaseTreeView.xaml/.cs    # DB explorer tree view
+│   └── DebuggerView.xaml/.cs        # Debugger view
 ├── Controls/
 │   ├── ResultGrid.xaml/.cs          # Result grid control with virtualization
-│   └── [other custom controls]
+│   ├── ResultTextView.xaml/.cs      # JSON text result view
+│   ├── ParametersView.xaml/.cs      # Query parameters view
+│   ├── FindReplaceControl.xaml/.cs  # Find/Replace control
+│   └── AvalonEditBehaviors.cs       # Attached properties for AvalonEdit MVVM binding
 ├── Converters/
-│   └── BsonValueToStringConverter.cs # BSON rendering converter
+│   └── BsonValueToStringConverter.cs
 ├── Resources/
-│   ├── Icons/                       # Icon resources (pack URIs)
-│   └── [other resources]
-├── Util/
-│   ├── Logging.cs                   # Serilog configuration and setup
-│   └── [utility classes]
-└── App.xaml/.cs                     # Application entry point with logging initialization
+│   └── Icons/                       # Icon resources (pack URIs)
+├── Settings/
+│   └── AppSettings.cs               # Persisted settings model (RowLimit, FontFamily, FontSize, TabSize, ThemeName)
+└── Util/
+    ├── Logging.cs                   # Serilog configuration (30-day retention)
+    └── AvalonEditBehavior.cs        # Legacy shim (deprecated; delegates to AvalonEditBehaviors)
 
-LiteDB.Studio.Wpf.Tests/             # New test project
+LiteDB.Studio.Wpf.Tests/
 ├── ViewModels/
 │   ├── MainViewModelTests.cs
 │   ├── TabViewModelTests.cs
-│   └── DatabaseTreeViewModelTests.cs
-└── Integration/
-    └── LiteDbServiceTests.cs
+│   ├── DatabaseTreeViewModelTests.cs
+│   └── DbTreeNodeTests.cs
+├── Controls/
+│   ├── AvalonEditBehaviorsTests.cs
+│   ├── ResultGridTests.cs
+│   ├── FindReplaceTests.cs
+│   └── UndoRedoTests.cs
+├── Integration/
+│   └── LiteDbServiceTests.cs
+└── Performance/
+    ├── GridPerformanceTests.cs
+    ├── MemoryLeakTests.cs
+    ├── CompletionLatencyTests.cs
+    ├── CompletionCachingTests.cs
+    └── EditorTypingLatencyTests.cs
 
 LiteDB.Studio/                        # Existing WinForms project (reference only)
 └── Forms/ConnectionForm.cs           # Behavioral parity reference
 ```
 
-**Structure Decision**: Single WPF application with MVVM structure. Existing `LiteDB.Studio.Wpf/` project contains partial WPF implementation; migration will complete ViewModels, Views, Services, and add comprehensive tests. New test project `LiteDB.Studio.Wpf.Tests` created for unit and integration tests.
+**Structure Decision**: Single WPF application with MVVM structure. Existing `LiteDB.Studio.Wpf/` project contains partial WPF implementation; migration completes ViewModels, Views, Services, and adds comprehensive tests.
 
 ## Complexity Tracking
 
@@ -125,90 +155,84 @@ No constitutional violations. Complexity tracking not required.
 - SQL editor: AvalonEdit (syntax highlighting, completion support)
 - Grid virtualization: WPF DataGrid with VirtualizingStackPanel
 - Async patterns: async/await with CancellationToken throughout
-- BSON rendering: Custom BsonValueToStringConverter
-- Tree lazy loading: LoadChildrenAsync with IsLoaded flag
-- Testing: xUnit with NSubstitute; unit tests for ViewModels (mocked service); integration tests for LiteDbService (in-memory databases)
-- Error handling: Structured errors in LastError; confirmation dialogs for destructive actions
-- Resources: Icons under LiteDB.Studio.Wpf/Resources with pack URIs
-- Performance: Target <1s for queries <1000 rows; Stopwatch for ExecutionTime
+- BSON rendering: Custom `BsonValueToStringConverter`
+- Tree lazy loading: `LoadChildrenAsync` with `IsLoaded` flag
+- Testing: xUnit with NSubstitute; unit tests for ViewModels (mocked service); integration tests for LiteDbService (in-memory LiteDB 5.x databases)
+- Error handling: Structured errors in `LastError`; confirmation dialogs for destructive actions
+- Resources: Icons under `LiteDB.Studio.Wpf/Resources` with pack URIs
+- Performance: Target <1s for queries <1000 rows; Stopwatch for `ExecutionTime`
+- **LiteDB 5.x**: target latest stable 5.x; encryption via `ConnectionString.Password`; in-memory tests via `new LiteDatabase(":memory:")`
+- **Logging retention**: 30 days via Serilog `retainedFileCountLimit: 30`
 
 **Outcome**: All technical unknowns resolved; ready for design phase.
 
 ---
 
-### Phase 1: Design & Contracts ✅ COMPLETE
+### Phase 1: Design & Contracts ✅ COMPLETE (updated 2026-04-07)
 
 **Artifacts**:
-- [data-model.md](data-model.md) — Core entities (QueryResult, ColumnInfo, TabViewModel, MainViewModel, DbTreeNode)
-- [contracts/IDatabaseService.md](contracts/IDatabaseService.md) — Database service contract (connection, execution, schema, updates, transactions)
-- [contracts/ViewModels.md](contracts/ViewModels.md) — ViewModel contracts (properties, commands, behaviors)
+- [data-model.md](data-model.md) — Core entities (updated with `RowLimit`, `LastConnectedPath`, `IsReadOnly`, `IsSystemCollection`, `IsDdl` metadata)
+- [contracts/IDatabaseService.md](contracts/IDatabaseService.md) — Database service contract (updated with `readOnly`/`password` on `ConnectAsync`, `IsReadOnly` property, `IsDdl` in Metadata)
+- [contracts/ViewModels.md](contracts/ViewModels.md) — ViewModel contracts (updated with all clarified properties/commands)
 - [quickstart.md](quickstart.md) — Phase-by-phase implementation guide
 
-**Agent Context Updated**:
-- GitHub Copilot context file created: `.github/agents/copilot-instructions.md`
-- Technologies added: C# / .NET 9.0, CommunityToolkit.Mvvm, AvalonEdit, LiteDB
-
 **Key Deliverables**:
-- QueryResult structure: Rows, Columns, LimitExceeded, RowCount, ExecutionTime, Warnings, Metadata
-- IDatabaseService methods: ConnectAsync, ExecuteAsync, GetCollectionNamesAsync, GetCollectionSchemaAsync, UpdateDocumentFieldAsync, transaction primitives
-- MainViewModel: Tabs, RunCommand, ConnectCommand, file commands, transaction commands
-- TabViewModel: EditorText, RunCommand (execute selection or buffer), LastResult/LastError
-- DbTreeNode: Lazy loading with LoadChildrenCommand, context actions (Drop, Export, InsertSnippet)
+- `QueryResult` structure: Rows, Columns, LimitExceeded, RowCount, ExecutionTime, Warnings, Metadata (`IsDdl` flag for DDL auto-refresh)
+- `IDatabaseService.ConnectAsync(connectionString, readOnly, password, cancellationToken)` — LiteDB 5.x; password never logged/stored
+- `IDatabaseService.IsReadOnly` property — mutating operations disabled when true
+- `MainViewModel`: Tabs, RunCommand, ConnectCommand (single-connection flow with transaction-rollback guard), `IsReadOnly`, `LastConnectedPath`
+- `TabViewModel`: EditorText, `RowLimit` (per-tab override, transient), RunCommand (`CanExecute` depends on `IsConnected` only), `IsModified` (set by any content change; reset only by OpenFile/SaveFile)
+- `DbTreeNode`: `IsSystemCollection` flag; system nodes expose Open+InsertSnippet only; user nodes expose Open+Drop+Export+InsertSnippet
+- DDL auto-refresh: `MainViewModel` watches `QueryResult.Metadata["IsDdl"]` after each execution and calls `DatabaseTreeViewModel.LoadRootNodesAsync` automatically
+- Disconnect flow: (1) warn+rollback if `TransactionActive`; (2) save prompts for modified tabs; (3) `DisconnectAsync` — tabs remain open but inactive
 
-**Post-Phase-1 Constitution Check**: ✅ PASS — All design artifacts satisfy constitutional requirements.
+**Post-Phase-1 Constitution Check**: ✅ PASS
 
-**Outcome**: Data model, service contracts, and ViewModel contracts defined; implementation guide created; ready to proceed to implementation (next: `/speckit.tasks` to generate task breakdown).
+**Outcome**: All design artifacts updated; contracts reflect 19 clarification decisions; ready for implementation.
 
 ---
 
 ## Editor Porting Tasks (ICSharpCode.TextEditor → AvalonEdit)
 
-This section captures concrete implementation steps introduced by the updated spec which mandates porting existing editor usages from `ICSharpCode.TextEditor` to `AvalonEdit`.
+1. Add NuGet: `ICSharpCode.AvalonEdit` to `LiteDB.Studio.Wpf.csproj`
+2. Implement `AvalonEditBehaviors.cs` attached properties: `EditorText` (two-way), `CaretOffset`, `SelectionStart`, `SelectionLength`, `IsModified`, `ShowCompletionCommand`
+3. Completion provider: `SqlCompletionProvider` implementing `ICompletionData`; queries `IDatabaseService` for schema; caching with TTL and schema-change invalidation; debounce ≤150ms
+4. Run-selection & caret-aware: `TabViewModel.RunCommand` prefers selection; F5 and Ctrl+Enter both bind to same `RunCommand`
+5. Preserve: syntax highlighting, undo/redo, find/replace (`FindReplaceControl`), tab size/font via `AppSettings`
+6. CI check: `.github/scripts/verify-no-icsharpcodetexteditor.ps1` fails PR if `ICSharpCode.TextEditor` references remain in WPF sources
+7. **IsModified rule**: any `EditorText` change (typed or programmatic, including `InsertSnippetCommand`) sets `IsModified = true`; only `OpenFileCommand` (load) and `SaveFileCommand` (successful save) reset it to `false`
 
-1. Add dependency
-    - Add NuGet package reference: `ICSharpCode.AvalonEdit` to `LiteDB.Studio.Wpf.csproj`.
-    - Document any optional packages required for advanced completion or templates in `quickstart.md`.
+---
 
-2. Editor MVVM binding (preferred: attached properties/behaviors)
-    - Implement attached properties / behaviors that expose AvalonEdit editor state to `TabViewModel`: `EditorText`, `CaretOffset`/`LineColumn`, `SelectionStart`, `SelectionLength`, `IsModified`.
-    - Attached properties/behaviors are the preferred MVVM-friendly pattern; avoid view code-behind except for minimal view-only wiring.
+## Key Clarification Decisions (reference — full log in spec.md)
 
-3. Completion provider
-    - Implement completion using AvalonEdit's `CompletionWindow` and `ICompletionData` patterns.
-    - Create `EditorCompletionService` that queries `IDatabaseService` for schema, collection names, and function suggestions.
-    - Wire completion to `Ctrl+Space` and automatic triggers where appropriate; unit-test completion provider logic against mocked `IDatabaseService`.
+| Decision | Resolution |
+|----------|-----------|
+| LiteDB version | 5.x (latest stable) |
+| ConnectAsync signature | `ConnectAsync(string path, bool readOnly, string? password, CancellationToken ct)` |
+| Read-only mode | First-class option (connection dialog + locked-file retry); `IsReadOnly` property; mutating commands disabled |
+| `RunCommand` in read-only | Enabled; SELECT runs normally; writes return structured "read-only" error via `LastError` |
+| Encryption | `ConnectionString.Password`; password never logged, stored, or retained |
+| Multi-DB connections | Single connection only; explicitly out of scope |
+| Tabs on disconnect | Remain open, become inactive; re-enabled on reconnect |
+| Disconnect with active transaction | Warn dialog → confirm calls `RollbackTransactionAsync` → disconnect; cancel aborts disconnect |
+| Session restore | Status bar clickable link "Reconnect to [filename]"; no auto-connect; `LastConnectedPath` property |
+| Row limit override | Global default in settings panel; per-tab `RowLimit` input in toolbar (transient, not persisted) |
+| DDL auto-refresh | `IsDdl` flag in `QueryResult.Metadata`; `MainViewModel` triggers `LoadRootNodesAsync` automatically |
+| Conflict resolution | Reload (default pre-selected) / Overwrite / Merge (always shown; side-by-side field comparison) |
+| Export format | JSON only; CSV and other formats explicitly out of scope |
+| System collection menu | Open + InsertSnippet only; Drop and Export hidden; `DbTreeNode.IsSystemCollection` drives visibility |
+| IsModified rule | Any content change sets true; OpenFile load and SaveFile success reset to false |
+| Log retention | 30 days (`retainedFileCountLimit: 30`) |
 
-4. Run-selection & caret-aware behavior
-    - Ensure `TabViewModel.RunCommand` executes selection when a selection exists, otherwise executes full buffer.
-    - Map keyboard shortcuts (F5, Ctrl+Enter) in the View to invoke the `RunCommand` on the `TabViewModel`.
-    - Add unit tests to assert selection/run behavior and caret-aware execution.
-
-5. Preserve editor features
-    - Implement or retain syntax highlighting, undo/redo, find/replace hooks, and configurable tab size/font via application settings.
-    - Ensure large-buffer performance (typing, navigation) remains within performance goals.
-
-6. Tests & CI checks
-    - Add unit tests in `LiteDB.Studio.Wpf.Tests/ViewModels/TabViewModelTests.cs` for `IsModified`, selection-run behaviors, and adapter bindings (mock `IDatabaseService`).
-    - Add integration test(s) to exercise the editor-driven execution flow using `LiteDbService` with in-memory databases.
-
-7. PR checklist / verification
-    - Include an automatic verification step in the PR checklist (or CI job) that runs a repository search for `ICSharpCode.TextEditor` references and fails the check if any remain within `LiteDB.Studio.Wpf` sources.
-    - Document the verification step in `specs/002-wpf-port/checklists/requirements.md`.
-
-8. Migration cadence
-    - Implement port incrementally per-story: start with Phase 1 (core execution) by adding lightweight attached properties that bind AvalonEdit `TextEditor` to `TabViewModel` (expose text/caret/selection/IsModified). Then progressively add completion, advanced editor features, and configuration in Phase 4 (Editor Enhancements).
-
-Developer Notes:
-- Prefer minimal changes and keep the existing `LiteDB.Studio` WinForms project untouched; the WPF project should choose AvalonEdit exclusively for editor components.
-- Prefer attached properties/behaviors for binding AvalonEdit to `ViewModel`s; if an adapter is required for a specific scenario, keep it thin and well-tested.
-
+---
 
 ## Next Steps
 
-1. **Run `/speckit.tasks`** to generate prioritized task breakdown from this plan (creates `tasks.md`)
-2. **Start Phase 1 implementation**: Implement `IDatabaseService`, `LiteDbService`, `TabViewModel.RunCommand`, and ResultGrid
-3. **Open first PR**: Phase 1 MVP (core execution) with unit tests for TabViewModel and integration tests for LiteDbService
-4. **Iterate phases**: Phase 2 (editing), Phase 3 (tree), Phase 4 (completion), Phase 5 (file ops), Phase 6 (transactions/debugger), Phase 7 (tests/polish)
+1. **Implement Phase 1 MVP** (`IDatabaseService`, `LiteDbService`, `TabViewModel.RunCommand`, `ResultGrid`)
+2. **Open first PR**: Phase 1 Core Execution with unit tests for TabViewModel and integration tests for LiteDbService
+3. **Iterate phases**: Phase 2–9 in priority order per tasks.md
+4. **Human commits only**: Agent prepares patches; human reviews, commits, and pushes per constitution
 
 ---
 

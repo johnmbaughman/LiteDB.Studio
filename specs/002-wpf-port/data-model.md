@@ -23,7 +23,7 @@ This document defines the domain entities, data structures, and state management
 | RowCount | Integer | Number of rows returned | >= 0; <= configured limit |
 | ExecutionTime | TimeSpan | Query execution duration | >= 0 |
 | Warnings | Collection of strings | Service/engine warnings | May be empty |
-| Metadata | Key-value dictionary | Extensible metadata | Optional; may be null |
+| Metadata | Key-value dictionary | Extensible metadata (IsDdl: bool — true when query is DDL such as CREATE/DROP COLLECTION or INDEX) | Optional; may be null |
 
 **State Transitions**: Immutable result; created once per query execution
 
@@ -64,11 +64,13 @@ This document defines the domain entities, data structures, and state management
 | LastResult | QueryResult (optional) | Most recent query result | May be null |
 | LastError | String (optional) | Last execution error message | May be null |
 | IsResultLoaded | Boolean | Lazy-load flag for result view | Initial: false |
+| RowLimit | Integer (optional) | Per-tab row limit override; transient (not persisted) | >= 1; null means use global default from AppSettings |
 
 **State Transitions**:
-- New tab: `IsModified = false`, `EditorText = ""`, `LastResult = null`
-- After edit: `IsModified = true`
-- After save: `IsModified = false`, `Filename` set
+- New tab: `IsModified = false`, `EditorText = ""`, `LastResult = null`, `RowLimit = null`
+- After any EditorText change (typed, programmatic, or InsertSnippet): `IsModified = true`
+- After `OpenFileCommand` (load): `IsModified = false`, `Filename` set, `EditorText` updated
+- After successful `SaveFileCommand`: `IsModified = false`, `Filename` set
 - After query: `LastResult` populated or `LastError` set
 
 **Relationships**:
@@ -88,11 +90,13 @@ This document defines the domain entities, data structures, and state management
 | CurrentDatabase | String (optional) | Connected DB path | Valid file path or null |
 | Tree | DatabaseTreeViewModel | DB explorer root | Non-null |
 | TransactionActive | Boolean | Transaction in progress | Read-only; derived from service |
+| IsReadOnly | Boolean | Connection is read-only | Read-only; derived from IDatabaseService.IsReadOnly |
+| LastConnectedPath | String (optional) | File path of last successful connection | Persisted in AppSettings; drives status bar reconnect link |
 
 **State Transitions**:
-- Startup: `IsConnected = false`, `Tabs = []`, `Tree = empty`
-- After connect: `IsConnected = true`, `CurrentDatabase` set, `Tree` populated
-- After disconnect: `IsConnected = false`, `Tree` cleared
+- Startup: `IsConnected = false`, `Tabs = []`, `Tree = empty`; `LastConnectedPath` loaded from AppSettings
+- After connect: `IsConnected = true`, `CurrentDatabase` set, `IsReadOnly` set, `LastConnectedPath` updated, `Tree` populated
+- After disconnect: `IsConnected = false`, `Tree` cleared; tabs remain open (inactive)
 
 **Relationships**:
 - Owns collection of `TabViewModel`
@@ -112,6 +116,7 @@ This document defines the domain entities, data structures, and state management
 | Children | Observable collection of DbTreeNode | Child nodes | Non-null; may be empty |
 | IsLoaded | Boolean | Lazy-load state | Initial: false |
 | IsExpanded | Boolean | UI expansion state | Bindable |
+| IsSystemCollection | Boolean | Node represents a system collection (_chunks, _files, etc.) | Set at creation; drives restricted context menu visibility |
 
 **State Transitions**:
 - Initial: `IsLoaded = false`, `Children = []` or placeholder
@@ -131,7 +136,7 @@ This document defines the domain entities, data structures, and state management
 | ColumnInfo | Name non-empty; unique within result |
 | TabViewModel | Title non-empty; CaretOffset/SelectionStart/Length >= 0 |
 | MainViewModel | SelectedTab exists in Tabs or is null |
-| DbTreeNode | Header non-empty; Children non-null |
+| DbTreeNode | Header non-empty; Children non-null; IsSystemCollection immutable after creation |
 
 ## State Management Patterns
 
@@ -175,7 +180,7 @@ MainViewModel
 ## Persistence & Serialization
 
 - **Editor state**: Not persisted; users explicitly save SQL files via `SaveFileCommand`
-- **Application preferences**: Row limit, window size, recent files (stored in user settings; out of scope for this spec)
+- **Application preferences**: Stored in `%APPDATA%\LiteDB.Studio\settings.json` as `AppSettings` (FontFamily, FontSize, TabSize, ThemeName, RowLimit default=1000, LastConnectedPath); loaded at startup, saved on change
 - **Database files**: User-provided LiteDB files; read/write via `IDatabaseService`
 
 ## Concurrency & Thread Safety
